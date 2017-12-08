@@ -1,8 +1,8 @@
 package engine
 
 import (
-	"github.com/centrifugal/centrifugo/libcentrifugo/channel"
-	"github.com/centrifugal/centrifugo/libcentrifugo/proto"
+	"github.com/nzlov/centrifugo/libcentrifugo/channel"
+	"github.com/nzlov/centrifugo/libcentrifugo/proto"
 )
 
 // Engine is an interface with all methods that can be used by client or
@@ -49,8 +49,10 @@ type Engine interface {
 	// Presence returns actual presence information for channel.
 	Presence(ch string) (map[string]proto.ClientInfo, error)
 
+	ReadMessage(ch, msgid string) (bool, error)
+
 	// History returns a slice of history messages for channel.
 	// Integer limit sets the max amount of messages that must be returned. 0 means no limit - i.e.
 	// return all history messages (actually limited by configured history_size).
-	History(ch string, limit int) ([]proto.Message, error)
+	History(ch string, skip, limit int) ([]proto.Message, int, error)
 }

@@ -3,9 +3,9 @@ package apiv1
 import (
 	"encoding/json"
 
-	"github.com/centrifugal/centrifugo/libcentrifugo/logger"
-	"github.com/centrifugal/centrifugo/libcentrifugo/node"
-	"github.com/centrifugal/centrifugo/libcentrifugo/proto"
+	"github.com/nzlov/centrifugo/libcentrifugo/logger"
+	"github.com/nzlov/centrifugo/libcentrifugo/node"
+	"github.com/nzlov/centrifugo/libcentrifugo/proto"
 )
 
 // APICommandFromJSON tries to extract single APICommand encoded as JSON.
@@ -392,13 +392,14 @@ func HistoryCmd(n *node.Node, cmd proto.HistoryAPICommand) (proto.Response, erro
 	body := proto.HistoryBody{
 		Channel: channel,
 	}
-	history, err := n.History(channel)
+	history, total, err := n.History(channel, 0, -1)
 	if err != nil {
 		resp := proto.NewAPIHistoryResponse(body)
 		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceNone})
 		return resp, nil
 	}
 	body.Data = history
+	body.Total = total
 	return proto.NewAPIHistoryResponse(body), nil
 }
 

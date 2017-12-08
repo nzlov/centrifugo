@@ -1,7 +1,7 @@
 package proto
 
 import (
-	"github.com/centrifugal/centrifugo/libcentrifugo/raw"
+	"github.com/nzlov/centrifugo/libcentrifugo/raw"
 	"github.com/valyala/bytebufferpool"
 )
 
@@ -163,6 +163,13 @@ type PresenceBody struct {
 type HistoryBody struct {
 	Channel string    `json:"channel"`
 	Data    []Message `json:"data"`
+	Total   int       `json:"total"`
+}
+
+type ReadBody struct {
+	Channel string `json:"channel"`
+	MsgID   string `json:"msgid"`
+	Read    bool   `json:"read"`
 }
 
 // ChannelsBody represents body of response in case of successful channels command.
@@ -394,6 +401,20 @@ func NewClientPingResponse(body *PingBody) *ClientPingResponse {
 	return &ClientPingResponse{
 		clientResponse: clientResponse{
 			Method: "ping",
+		},
+		Body: body,
+	}
+}
+
+type ClientReadResponse struct {
+	clientResponse
+	Body ReadBody `json:"body,omitempty"`
+}
+
+func NewClientReadResponse(body ReadBody) *ClientReadResponse {
+	return &ClientReadResponse{
+		clientResponse: clientResponse{
+			Method: "read",
 		},
 		Body: body,
 	}

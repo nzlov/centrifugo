@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/centrifugal/centrifugo/libcentrifugo/metrics"
-	"github.com/centrifugal/centrifugo/libcentrifugo/node"
-	"github.com/centrifugal/centrifugo/libcentrifugo/plugin"
+	"github.com/nzlov/centrifugo/libcentrifugo/metrics"
+	"github.com/nzlov/centrifugo/libcentrifugo/node"
+	"github.com/nzlov/centrifugo/libcentrifugo/plugin"
 )
 
 func init() {

@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/centrifugal/centrifugo/libcentrifugo/api/v1"
-	"github.com/centrifugal/centrifugo/libcentrifugo/auth"
-	"github.com/centrifugal/centrifugo/libcentrifugo/conns"
-	"github.com/centrifugal/centrifugo/libcentrifugo/logger"
-	"github.com/centrifugal/centrifugo/libcentrifugo/node"
-	"github.com/centrifugal/centrifugo/libcentrifugo/proto"
-	"github.com/centrifugal/centrifugo/libcentrifugo/queue"
+	"github.com/nzlov/centrifugo/libcentrifugo/api/v1"
+	"github.com/nzlov/centrifugo/libcentrifugo/auth"
+	"github.com/nzlov/centrifugo/libcentrifugo/conns"
+	"github.com/nzlov/centrifugo/libcentrifugo/logger"
+	"github.com/nzlov/centrifugo/libcentrifugo/node"
+	"github.com/nzlov/centrifugo/libcentrifugo/proto"
+	"github.com/nzlov/centrifugo/libcentrifugo/queue"
 	"github.com/satori/go.uuid"
 )
 

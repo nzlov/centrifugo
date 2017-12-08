@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/centrifugal/centrifugo/libcentrifugo/conns"
+	"github.com/nzlov/centrifugo/libcentrifugo/conns"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 )

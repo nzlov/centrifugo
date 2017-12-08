@@ -6,14 +6,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/centrifugal/centrifugo/libcentrifugo/channel"
-	"github.com/centrifugal/centrifugo/libcentrifugo/config"
-	"github.com/centrifugal/centrifugo/libcentrifugo/engine"
-	"github.com/centrifugal/centrifugo/libcentrifugo/logger"
-	"github.com/centrifugal/centrifugo/libcentrifugo/node"
-	"github.com/centrifugal/centrifugo/libcentrifugo/plugin"
-	"github.com/centrifugal/centrifugo/libcentrifugo/priority"
-	"github.com/centrifugal/centrifugo/libcentrifugo/proto"
+	"github.com/nzlov/centrifugo/libcentrifugo/channel"
+	"github.com/nzlov/centrifugo/libcentrifugo/config"
+	"github.com/nzlov/centrifugo/libcentrifugo/engine"
+	"github.com/nzlov/centrifugo/libcentrifugo/logger"
+	"github.com/nzlov/centrifugo/libcentrifugo/node"
+	"github.com/nzlov/centrifugo/libcentrifugo/plugin"
+	"github.com/nzlov/centrifugo/libcentrifugo/priority"
+	"github.com/nzlov/centrifugo/libcentrifugo/proto"
 )
 
 func init() {
@@ -142,9 +142,13 @@ func (e *MemoryEngine) Presence(ch string) (map[string]proto.ClientInfo, error) 
 	return e.presenceHub.get(ch)
 }
 
+func (e *MemoryEngine) ReadMessage(ch, msgid string) (bool, error) {
+	return e.historyHub.readMessage(ch, msgid)
+}
+
 // History extracts history from history hub.
-func (e *MemoryEngine) History(ch string, limit int) ([]proto.Message, error) {
-	return e.historyHub.get(ch, limit)
+func (e *MemoryEngine) History(ch string, skip, limit int) ([]proto.Message, int, error) {
+	return e.historyHub.get(ch, skip, limit)
 }
 
 // Channels returns all channels node currently subscribed on.
@@ -317,7 +321,7 @@ func (h *historyHub) add(ch string, msg proto.Message, opts *channel.Options, ha
 		}
 	} else {
 		messages := h.history[ch].messages
-		messages = append([]proto.Message{msg}, messages...)
+		messages = append(append([]proto.Message{}, messages...), msg)
 		if len(messages) > opts.HistorySize {
 			messages = messages[0:opts.HistorySize]
 		}
@@ -334,22 +338,58 @@ func (h *historyHub) add(ch string, msg proto.Message, opts *channel.Options, ha
 	return nil
 }
 
-func (h *historyHub) get(ch string, limit int) ([]proto.Message, error) {
+func (h *historyHub) get(ch string, skip, limit int) ([]proto.Message, int, error) {
 	h.RLock()
 	defer h.RUnlock()
 
 	hItem, ok := h.history[ch]
 	if !ok {
 		// return empty slice
-		return []proto.Message{}, nil
+		return []proto.Message{}, 0, nil
 	}
 	if hItem.isExpired() {
 		// return empty slice
 		delete(h.history, ch)
-		return []proto.Message{}, nil
+		return []proto.Message{}, 0, nil
 	}
-	if limit == 0 || limit >= len(hItem.messages) {
-		return hItem.messages, nil
+	length := len(hItem.messages)
+	if limit == -1 {
+		limit = length
 	}
-	return hItem.messages[:limit], nil
+	if limit > length {
+		limit = length
+	}
+	if skip < 0 {
+		limit = length + skip + 1
+		skip = limit + skip
+	}
+	if skip > length {
+		skip = length - 1
+		limit = length
+	}
+	return hItem.messages[skip:limit], length, nil
+}
+func (h *historyHub) readMessage(ch, msgid string) (bool, error) {
+	h.RLock()
+	defer h.RUnlock()
+
+	hItem, ok := h.history[ch]
+	if !ok {
+		return false, proto.ErrInvalidMessage
+	}
+	if hItem.isExpired() {
+		delete(h.history, ch)
+		return false, nil
+	}
+
+	for i := 0; i < len(hItem.messages); i++ {
+		if hItem.messages[i].UID == msgid {
+			msg := hItem.messages[i]
+			msg.Read = true
+			hItem.messages[i] = msg
+			return true, nil
+		}
+	}
+
+	return false, proto.ErrInvalidMessage
 }

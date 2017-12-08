@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/centrifugal/centrifugo/libcentrifugo/channel"
-	"github.com/centrifugal/centrifugo/libcentrifugo/conns"
-	"github.com/centrifugal/centrifugo/libcentrifugo/node"
-	"github.com/centrifugal/centrifugo/libcentrifugo/proto"
-	"github.com/centrifugal/centrifugo/libcentrifugo/raw"
+	"github.com/nzlov/centrifugo/libcentrifugo/channel"
+	"github.com/nzlov/centrifugo/libcentrifugo/conns"
+	"github.com/nzlov/centrifugo/libcentrifugo/node"
+	"github.com/nzlov/centrifugo/libcentrifugo/proto"
+	"github.com/nzlov/centrifugo/libcentrifugo/raw"
 	"github.com/stretchr/testify/assert"
 )
 

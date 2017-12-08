@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/centrifugal/centrifugo/libcentrifugo/channel"
-	"github.com/centrifugal/centrifugo/libcentrifugo/proto"
+	"github.com/nzlov/centrifugo/libcentrifugo/channel"
+	"github.com/nzlov/centrifugo/libcentrifugo/proto"
 )
 
 // Config contains Application configuration options.

@@ -6,15 +6,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/centrifugal/centrifugo/libcentrifugo/auth"
-	"github.com/centrifugal/centrifugo/libcentrifugo/conns"
-	"github.com/centrifugal/centrifugo/libcentrifugo/logger"
-	"github.com/centrifugal/centrifugo/libcentrifugo/metrics"
-	"github.com/centrifugal/centrifugo/libcentrifugo/node"
-	"github.com/centrifugal/centrifugo/libcentrifugo/plugin"
-	"github.com/centrifugal/centrifugo/libcentrifugo/proto"
-	"github.com/centrifugal/centrifugo/libcentrifugo/queue"
-	"github.com/centrifugal/centrifugo/libcentrifugo/raw"
+	"github.com/nzlov/centrifugo/libcentrifugo/auth"
+	"github.com/nzlov/centrifugo/libcentrifugo/conns"
+	"github.com/nzlov/centrifugo/libcentrifugo/logger"
+	"github.com/nzlov/centrifugo/libcentrifugo/metrics"
+	"github.com/nzlov/centrifugo/libcentrifugo/node"
+	"github.com/nzlov/centrifugo/libcentrifugo/plugin"
+	"github.com/nzlov/centrifugo/libcentrifugo/proto"
+	"github.com/nzlov/centrifugo/libcentrifugo/queue"
+	"github.com/nzlov/centrifugo/libcentrifugo/raw"
 	"github.com/satori/go.uuid"
 )
 
@@ -455,6 +455,16 @@ func (c *client) handleCmd(command proto.ClientCommand) (proto.Response, error) 
 			}
 		}
 		resp, err = c.pingCmd(&cmd)
+	case "read":
+		var cmd proto.ReadClientCommand
+		err = json.Unmarshal(params, &cmd)
+		if err != nil {
+			return nil, proto.ErrInvalidMessage
+		}
+		if cmd.MsgID == "" || cmd.Channel == "" {
+			return nil, proto.ErrInvalidMessage
+		}
+		resp, err = c.readMessage(&cmd)
 	case "presence":
 		var cmd proto.PresenceClientCommand
 		err = json.Unmarshal(params, &cmd)
@@ -798,7 +808,7 @@ func (c *client) subscribeCmd(cmd *proto.SubscribeClientCommand) (proto.Response
 			// Client provided subscribe request with recover flag on. Try to recover missed messages
 			// automatically from history (we suppose here that history configured wisely) based on
 			// provided last message id value.
-			messages, err := c.node.History(channel)
+			messages, _, err := c.node.History(channel, 0, -1)
 			if err != nil {
 				logger.ERROR.Printf("can't recover messages for channel %s: %s", string(channel), err)
 				body.Messages = []proto.Message{}
@@ -977,6 +987,21 @@ func (c *client) presenceCmd(cmd *proto.PresenceClientCommand) (proto.Response, 
 	return proto.NewClientPresenceResponse(body), nil
 }
 
+func (c *client) readMessage(cmd *proto.ReadClientCommand) (proto.Response, error) {
+	body := proto.ReadBody{
+		MsgID:   cmd.MsgID,
+		Channel: cmd.Channel,
+	}
+	success, err := c.node.ReadMessage(cmd.Channel, cmd.MsgID)
+	if err != nil {
+		resp := proto.NewClientReadResponse(body)
+		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceRetry})
+		return resp, nil
+	}
+	body.Read = success
+	return proto.NewClientReadResponse(body), nil
+}
+
 // historyCmd handles history command - it shows last M messages published
 // into channel. M is history size and can be configured for project or namespace
 // via channel options. Also this method checks that history available for channel
@@ -995,7 +1020,7 @@ func (c *client) historyCmd(cmd *proto.HistoryClientCommand) (proto.Response, er
 		return resp, nil
 	}
 
-	history, err := c.node.History(channel)
+	history, total, err := c.node.History(channel, cmd.Skip, cmd.Limit)
 	if err != nil {
 		resp := proto.NewClientHistoryResponse(body)
 		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceRetry})
@@ -1003,6 +1028,7 @@ func (c *client) historyCmd(cmd *proto.HistoryClientCommand) (proto.Response, er
 	}
 
 	body.Data = history
+	body.Total = total
 
 	return proto.NewClientHistoryResponse(body), nil
 }

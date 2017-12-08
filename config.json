@@ -1,4 +1,5 @@
 {
+  "debug":true,
   "secret": "secret",
   "web": true,
   "admin_password": "password",

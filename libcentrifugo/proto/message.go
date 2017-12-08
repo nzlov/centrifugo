@@ -1,7 +1,7 @@
 package proto
 
 import (
-	"github.com/centrifugal/centrifugo/libcentrifugo/raw"
+	"github.com/nzlov/centrifugo/libcentrifugo/raw"
 	"github.com/nats-io/nuid"
 )
 

@@ -19,14 +19,15 @@ option (gogoproto.testgen_all) = true;
 message ClientInfo {
   string User = 1 [(gogoproto.jsontag) = "user"];
   string Client = 2 [(gogoproto.jsontag) = "client"];
-  bytes DefaultInfo = 3 [(gogoproto.customtype) = "github.com/centrifugal/centrifugo/libcentrifugo/raw.Raw", (gogoproto.jsontag) = "default_info,omitempty", (gogoproto.nullable) = false];
-  bytes ChannelInfo = 4 [(gogoproto.customtype) = "github.com/centrifugal/centrifugo/libcentrifugo/raw.Raw", (gogoproto.jsontag) = "channel_info,omitempty", (gogoproto.nullable) = false];
+  bytes DefaultInfo = 3 [(gogoproto.customtype) = "github.com/nzlov/centrifugo/libcentrifugo/raw.Raw", (gogoproto.jsontag) = "default_info,omitempty", (gogoproto.nullable) = false];
+  bytes ChannelInfo = 4 [(gogoproto.customtype) = "github.com/nzlov/centrifugo/libcentrifugo/raw.Raw", (gogoproto.jsontag) = "channel_info,omitempty", (gogoproto.nullable) = false];
 }
 
 message Message {
   string UID = 1 [(gogoproto.jsontag) = "uid"];
+  bool Read = 2 [(gogoproto.jsontag) = "read"];
   string Channel = 3 [(gogoproto.jsontag) = "channel"];
-  bytes Data = 4 [(gogoproto.customtype) = "github.com/centrifugal/centrifugo/libcentrifugo/raw.Raw", (gogoproto.jsontag) = "data", (gogoproto.nullable) = false];
+  bytes Data = 4 [(gogoproto.customtype) = "github.com/nzlov/centrifugo/libcentrifugo/raw.Raw", (gogoproto.jsontag) = "data", (gogoproto.nullable) = false];
   string Client = 5 [(gogoproto.jsontag) = "client,omitempty"];
   ClientInfo Info = 6 [(gogoproto.jsontag) = "info,omitempty"];
 }
@@ -46,11 +47,11 @@ message ControlMessage {
   // this control command.
   string UID = 1 [(gogoproto.jsontag) = "uid"];
   string Method = 2 [(gogoproto.jsontag) = "method"];
-  bytes Params = 3 [(gogoproto.customtype) = "github.com/centrifugal/centrifugo/libcentrifugo/raw.Raw", (gogoproto.jsontag) = "params", (gogoproto.nullable) = false];
+  bytes Params = 3 [(gogoproto.customtype) = "github.com/nzlov/centrifugo/libcentrifugo/raw.Raw", (gogoproto.jsontag) = "params", (gogoproto.nullable) = false];
 }
 
 message AdminMessage {
   string UID = 1 [(gogoproto.jsontag) = "uid"];
   string Method = 2 [(gogoproto.jsontag) = "method"];
-  bytes Params = 3 [(gogoproto.customtype) = "github.com/centrifugal/centrifugo/libcentrifugo/raw.Raw", (gogoproto.jsontag) = "params", (gogoproto.nullable) = false];
+  bytes Params = 3 [(gogoproto.customtype) = "github.com/nzlov/centrifugo/libcentrifugo/raw.Raw", (gogoproto.jsontag) = "params", (gogoproto.nullable) = false];
 }

@@ -1,10 +1,10 @@
 package plugin
 
 import (
-	"github.com/centrifugal/centrifugo/libcentrifugo/config"
-	"github.com/centrifugal/centrifugo/libcentrifugo/engine"
-	"github.com/centrifugal/centrifugo/libcentrifugo/metrics"
-	"github.com/centrifugal/centrifugo/libcentrifugo/node"
+	"github.com/nzlov/centrifugo/libcentrifugo/config"
+	"github.com/nzlov/centrifugo/libcentrifugo/engine"
+	"github.com/nzlov/centrifugo/libcentrifugo/metrics"
+	"github.com/nzlov/centrifugo/libcentrifugo/node"
 )
 
 // EngineFactory is a function that returns engine.Engine implementation.

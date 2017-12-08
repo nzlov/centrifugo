@@ -3,7 +3,7 @@ package proto
 import (
 	"encoding/json"
 
-	"github.com/centrifugal/centrifugo/libcentrifugo/raw"
+	"github.com/nzlov/centrifugo/libcentrifugo/raw"
 )
 
 // NodeInfo contains information and statistics about Centrifugo node.
@@ -114,11 +114,19 @@ type PresenceClientCommand struct {
 // HistoryClientCommand is used to get history information for channel.
 type HistoryClientCommand struct {
 	Channel string `json:"channel"`
+	Skip    int    `json:"skip"`
+	Limit   int    `json:"limit"`
 }
 
 // PingClientCommand is used to ping server.
 type PingClientCommand struct {
 	Data string `json:"data"`
+}
+
+// ReadClientCommand is used to read Msg.
+type ReadClientCommand struct {
+	Channel string `json:"channel"`
+	MsgID   string `json:"msgid"`
 }
 
 // PublishAPICommand is used to publish messages into channel.

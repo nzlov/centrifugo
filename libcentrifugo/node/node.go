@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/centrifugal/centrifugo/libcentrifugo/channel"
-	"github.com/centrifugal/centrifugo/libcentrifugo/conns"
-	"github.com/centrifugal/centrifugo/libcentrifugo/engine"
-	"github.com/centrifugal/centrifugo/libcentrifugo/logger"
-	"github.com/centrifugal/centrifugo/libcentrifugo/metrics"
-	"github.com/centrifugal/centrifugo/libcentrifugo/proto"
+	"github.com/nzlov/centrifugo/libcentrifugo/channel"
+	"github.com/nzlov/centrifugo/libcentrifugo/conns"
+	"github.com/nzlov/centrifugo/libcentrifugo/engine"
+	"github.com/nzlov/centrifugo/libcentrifugo/logger"
+	"github.com/nzlov/centrifugo/libcentrifugo/metrics"
+	"github.com/nzlov/centrifugo/libcentrifugo/proto"
 	"github.com/satori/go.uuid"
 )
 
@@ -760,37 +760,40 @@ func (n *Node) Presence(ch string) (map[string]proto.ClientInfo, error) {
 	}
 	return presence, nil
 }
+func (n *Node) ReadMessage(ch, msgid string) (bool, error) {
+	return n.engine.ReadMessage(ch, msgid)
+}
 
 // History returns a slice of last messages published into project channel.
-func (n *Node) History(ch string) ([]proto.Message, error) {
+func (n *Node) History(ch string, skip, limit int) ([]proto.Message, int, error) {
 
 	if string(ch) == "" {
-		return []proto.Message{}, proto.ErrInvalidMessage
+		return []proto.Message{}, 0, proto.ErrInvalidMessage
 	}
 
 	chOpts, err := n.ChannelOpts(ch)
 	if err != nil {
-		return []proto.Message{}, err
+		return []proto.Message{}, 0, err
 	}
 
 	if chOpts.HistorySize <= 0 || chOpts.HistoryLifetime <= 0 {
-		return []proto.Message{}, proto.ErrNotAvailable
+		return []proto.Message{}, 0, proto.ErrNotAvailable
 	}
 
 	metricsRegistry.Counters.Inc("node_num_history")
 
-	history, err := n.engine.History(ch, 0)
+	history, total, err := n.engine.History(ch, skip, limit)
 	if err != nil {
 		logger.ERROR.Println(err)
-		return []proto.Message{}, proto.ErrInternalServerError
+		return []proto.Message{}, 0, proto.ErrInternalServerError
 	}
-	return history, nil
+	return history, total, nil
 }
 
 // LastMessageID return last message id for channel.
 func (n *Node) LastMessageID(ch string) (string, error) {
 	metricsRegistry.Counters.Inc("node_num_last_message_id")
-	history, err := n.engine.History(ch, 1)
+	history, _, err := n.engine.History(ch, -1, 1)
 	if err != nil {
 		return "", err
 	}

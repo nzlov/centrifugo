@@ -4,7 +4,7 @@ ENV VERSION 1.7.6
 
 ENV CENTRIFUGO_SHA256 29f5b4d42fb9049e6d2a776624481c0d9968d910bf4388095df22d85589f6035
 
-ENV DOWNLOAD https://github.com/centrifugal/centrifugo/releases/download/v$VERSION/centrifugo-$VERSION-linux-amd64.zip
+ENV DOWNLOAD https://github.com/nzlov/centrifugo/releases/download/v$VERSION/centrifugo-$VERSION-linux-amd64.zip
 
 RUN curl -sSL "$DOWNLOAD" -o /tmp/centrifugo.zip && \
     echo "${CENTRIFUGO_SHA256}  /tmp/centrifugo.zip" | sha256sum -c - && \
