@@ -323,7 +323,7 @@ func (h *historyHub) add(ch string, msg proto.Message, opts *channel.Options, ha
 		messages := h.history[ch].messages
 		messages = append(append([]proto.Message{}, messages...), msg)
 		if len(messages) > opts.HistorySize {
-			messages = messages[0:opts.HistorySize]
+			messages = messages[1:]
 		}
 		h.history[ch] = historyItem{
 			messages: messages,
