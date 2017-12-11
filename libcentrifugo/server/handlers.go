@@ -17,6 +17,7 @@ import (
 	"github.com/nzlov/centrifugo/libcentrifugo/logger"
 	"github.com/nzlov/centrifugo/libcentrifugo/plugin"
 	"github.com/nzlov/centrifugo/libcentrifugo/proto"
+
 	"github.com/gorilla/websocket"
 	"github.com/igm/sockjs-go/sockjs"
 )

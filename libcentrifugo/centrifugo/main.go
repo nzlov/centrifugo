@@ -17,14 +17,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/FZambia/viper-lite"
-	"github.com/igm/sockjs-go/sockjs"
 	"github.com/nzlov/centrifugo/libcentrifugo/config"
 	"github.com/nzlov/centrifugo/libcentrifugo/engine"
 	"github.com/nzlov/centrifugo/libcentrifugo/logger"
 	"github.com/nzlov/centrifugo/libcentrifugo/node"
 	"github.com/nzlov/centrifugo/libcentrifugo/plugin"
 	"github.com/nzlov/centrifugo/libcentrifugo/server"
+
+	"github.com/FZambia/viper-lite"
+	"github.com/igm/sockjs-go/sockjs"
 	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/acme/autocert"
@@ -280,7 +281,11 @@ func runServer(n *node.Node, s *server.HTTPServer) error {
 
 	var webFS http.FileSystem
 	if webEnabled {
-		webFS, _ = fs.New()
+		var err error
+		webFS, err = fs.New()
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	if webEnabled {
