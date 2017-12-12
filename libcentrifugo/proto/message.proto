@@ -26,10 +26,11 @@ message ClientInfo {
 message Message {
   string UID = 1 [(gogoproto.jsontag) = "uid"];
   bool Read = 2 [(gogoproto.jsontag) = "read"];
-  string Channel = 3 [(gogoproto.jsontag) = "channel"];
-  bytes Data = 4 [(gogoproto.customtype) = "github.com/nzlov/centrifugo/libcentrifugo/raw.Raw", (gogoproto.jsontag) = "data", (gogoproto.nullable) = false];
-  string Client = 5 [(gogoproto.jsontag) = "client,omitempty"];
-  ClientInfo Info = 6 [(gogoproto.jsontag) = "info,omitempty"];
+  int64 Timestamp= 3 [(gogoproto.jsontag) = "timestamp"];
+  string Channel = 4 [(gogoproto.jsontag) = "channel"];
+  bytes Data = 5 [(gogoproto.customtype) = "github.com/nzlov/centrifugo/libcentrifugo/raw.Raw", (gogoproto.jsontag) = "data", (gogoproto.nullable) = false];
+  string Client = 6 [(gogoproto.jsontag) = "client,omitempty"];
+  ClientInfo Info = 7 [(gogoproto.jsontag) = "info,omitempty"];
 }
 
 message JoinMessage {

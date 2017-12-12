@@ -40,7 +40,7 @@ func writePidFile(pidFile string) error {
 }
 
 func setupLogging() {
-	log.SetFlags(0)
+	log.SetFlags(log.Lshortfile)
 	log.SetOutput(logger.INFO)
 	logLevel, ok := logger.LevelMatches[strings.ToUpper(viper.GetString("log_level"))]
 	if !ok {
@@ -48,6 +48,7 @@ func setupLogging() {
 	}
 	logger.SetLogThreshold(logLevel)
 	logger.SetStdoutThreshold(logLevel)
+	logger.SetLogFlag(log.Lshortfile)
 
 	if viper.IsSet("log_file") && viper.GetString("log_file") != "" {
 		logger.SetLogFile(viper.GetString("log_file"))

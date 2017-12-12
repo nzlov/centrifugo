@@ -1,8 +1,10 @@
 package proto
 
 import (
-	"github.com/nzlov/centrifugo/libcentrifugo/raw"
+	"time"
+
 	"github.com/nats-io/nuid"
+	"github.com/nzlov/centrifugo/libcentrifugo/raw"
 )
 
 // NewClientInfo allows to initialize ClientInfo.
@@ -19,11 +21,12 @@ func NewClientInfo(user string, client string, defaultInfo raw.Raw, channelInfo 
 func NewMessage(ch string, data []byte, client string, info *ClientInfo) *Message {
 	raw := raw.Raw(data)
 	return &Message{
-		UID:     nuid.Next(),
-		Info:    info,
-		Channel: ch,
-		Data:    raw,
-		Client:  client,
+		UID:       nuid.Next(),
+		Info:      info,
+		Channel:   ch,
+		Timestamp: time.Now().Unix(),
+		Data:      raw,
+		Client:    client,
 	}
 }
 

@@ -2,7 +2,7 @@ package main
 
 import (
 	// Register builtin memory and redis engines.
-	_ "github.com/nzlov/centrifugo/libcentrifugo/engine/enginememory"
+	_ "github.com/nzlov/centrifugo/libcentrifugo/engine/enginemgo"
 
 	// Register embedded web interface.
 	_ "github.com/nzlov/centrifugo/libcentrifugo/statik"

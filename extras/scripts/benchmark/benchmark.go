@@ -173,6 +173,6 @@ func main() {
 			}
 			totalTime += fullTime / float64(currentClients)
 		}
-		fmt.Printf("%d\t%d\n", currentClients, int(totalTime/float64(repeats)))
+		fmt.Printf("%d\t%v\n", currentClients, time.Duration(totalTime/float64(repeats)))
 	}
 }

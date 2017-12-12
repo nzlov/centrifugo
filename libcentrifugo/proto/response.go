@@ -1,6 +1,8 @@
 package proto
 
 import (
+	fmt "fmt"
+
 	"github.com/nzlov/centrifugo/libcentrifugo/raw"
 	"github.com/valyala/bytebufferpool"
 )
@@ -63,6 +65,8 @@ func writeMessage(buf *bytebufferpool.ByteBuffer, msg *Message) {
 
 	buf.WriteString(`"channel":`)
 	EncodeJSONString(buf, msg.Channel, true)
+	buf.WriteString(`,"timestamp":`)
+	buf.WriteString(fmt.Sprint(msg.Timestamp))
 	buf.WriteString(`,"data":`)
 	buf.Write(msg.Data)
 	buf.WriteString(`}`)
