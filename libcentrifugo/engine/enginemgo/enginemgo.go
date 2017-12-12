@@ -104,11 +104,15 @@ func (e *MgoEngine) Run() error {
 		e.sessionDupl = e.session.Clone
 
 	}
+	e.expireCache.OnEvicted(func(k string, v interface{}) {
+		logger.DEBUG.Println("Mgo Read Expire Cache:Evicted:", k)
+	})
 	return nil
 }
 
 // Shutdown shuts down engine.
 func (e *MgoEngine) Shutdown() error {
+	e.expireCache.OnEvicted(nil)
 	return errors.New("Shutdown not implemented")
 }
 
@@ -189,13 +193,14 @@ func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options
 		tb = chs[0]
 	}
 	err := session.DB(e.config.DB).C(tb).Insert(bson.M{
-		"uid":     message.UID,
-		"channel": message.Channel,
-		"client":  message.Client,
-		"data":    message.Data,
-		"info":    message.Info,
-		"read":    message.Read,
-		"addtime": message.Timestamp,
+		"uid":       message.UID,
+		"channel":   message.Channel,
+		"client":    message.Client,
+		"data":      message.Data,
+		"info":      message.Info,
+		"read":      message.Read,
+		"timestamp": message.Timestamp,
+		"addtime":   time.Now(),
 	})
 	eChan := make(chan error, 1)
 	if err != nil {
