@@ -163,6 +163,8 @@ type PresenceAPICommand struct {
 // HistoryAPICommand is used to get history information for channel.
 type HistoryAPICommand struct {
 	Channel string `json:"channel"`
+	Skip    int    `json:"skip"`
+	Limit   int    `json:"limit"`
 }
 
 // PingControlCommand allows nodes to know about each other - node sends this

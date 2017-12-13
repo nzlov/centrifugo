@@ -392,7 +392,7 @@ func HistoryCmd(n *node.Node, cmd proto.HistoryAPICommand) (proto.Response, erro
 	body := proto.HistoryBody{
 		Channel: channel,
 	}
-	history, total, err := n.History(channel, 0, -1)
+	history, total, err := n.History(channel, cmd.Skip, cmd.Limit)
 	if err != nil {
 		resp := proto.NewAPIHistoryResponse(body)
 		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceNone})

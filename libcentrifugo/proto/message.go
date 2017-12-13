@@ -24,7 +24,7 @@ func NewMessage(ch string, data []byte, client string, info *ClientInfo) *Messag
 		UID:       nuid.Next(),
 		Info:      info,
 		Channel:   ch,
-		Timestamp: time.Now().Unix(),
+		Timestamp: time.Now().UnixNano(),
 		Data:      raw,
 		Client:    client,
 	}
