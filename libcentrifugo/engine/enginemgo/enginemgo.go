@@ -341,7 +341,7 @@ func (e *MgoEngine) History(ch string, skip, limit int) ([]proto.Message, int, e
 
 	logger.DEBUG.Println("Engine Mgo:History:", ch, sort, skip, limit)
 
-	err = session.DB(e.config.DB).C(tb).Find(bson.M{}).Sort(sort).Skip(skip).Limit(limit).All(&msgs)
+	err = session.DB(e.config.DB).C(tb).Find(bson.M{"channel": ch}).Sort(sort).Skip(skip).Limit(limit).All(&msgs)
 	if err != nil {
 		return []proto.Message{}, 0, proto.ErrInvalidMessage
 	}
