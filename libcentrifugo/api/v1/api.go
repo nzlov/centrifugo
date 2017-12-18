@@ -199,7 +199,7 @@ func PublishCmd(n *node.Node, cmd proto.PublishAPICommand) (proto.Response, erro
 		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceNone})
 		return resp, nil
 	}
-	resp.SetUID(message.UID)
+	resp.Body = message.UID
 	return resp, nil
 }
 
