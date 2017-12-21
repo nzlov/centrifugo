@@ -693,7 +693,7 @@ func recoverMessages(last string, messages []proto.Message) ([]proto.Message, bo
 	if position > -1 {
 		// Last uid provided found in history. Set recovered flag which means that
 		// Centrifugo thinks missed messages fully recovered.
-		return messages[0:position], true
+		return messages[position+1:], true
 	}
 	// Last id provided not found in history messages. This means that client
 	// most probably missed too many messages (maybe wrong last uid provided but
@@ -805,6 +805,8 @@ func (c *client) subscribeCmd(cmd *proto.SubscribeClientCommand) (proto.Response
 
 	if chOpts.Recover {
 		if cmd.Recover {
+			logger.ERROR.Println("cmd.Recover")
+
 			// Client provided subscribe request with recover flag on. Try to recover missed messages
 			// automatically from history (we suppose here that history configured wisely) based on
 			// provided last message id value.
@@ -814,10 +816,12 @@ func (c *client) subscribeCmd(cmd *proto.SubscribeClientCommand) (proto.Response
 				body.Messages = []proto.Message{}
 			} else {
 				recoveredMessages, recovered := recoverMessages(cmd.Last, messages)
+				logger.ERROR.Printf("recoveredMessages:%+v\n", recoveredMessages)
 				body.Messages = recoveredMessages
 				body.Recovered = recovered
 			}
 		} else {
+			logger.ERROR.Println("No cmd.Recover")
 			// Client don't want to recover messages yet, we just return last message id to him here.
 			lastMessageID, err := c.node.LastMessageID(channel)
 			if err != nil {
@@ -988,6 +992,7 @@ func (c *client) presenceCmd(cmd *proto.PresenceClientCommand) (proto.Response, 
 }
 
 func (c *client) readMessage(cmd *proto.ReadClientCommand) (proto.Response, error) {
+	logger.DEBUG.Printf("Channel %s Read Message:%v\n", cmd.Channel, cmd.MsgID)
 	body := proto.ReadBody{
 		MsgID:   cmd.MsgID,
 		Channel: cmd.Channel,

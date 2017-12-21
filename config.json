@@ -15,23 +15,25 @@
       "presence": true,
       "join_leave": true,
       "history_size": 10,
-      "history_lifetime": 30
+      "history_lifetime": 30,
+      "recover":true
     },{
-      "name": "shop",
+      "name": "shops",
       "watch": true,
       "presence": true
     },{
-      "name": "printer",
+      "name": "printers",
       "watch": true,
       "presence": true
     },{
-      "name": "employee",
+      "name": "employees",
       "watch": true,
       "presence": true
     } ,{
-      "name": "user",
+      "name": "users",
       "watch": true,
-      "presence": true
+      "presence": true,
+      "recover":true
     }  
   ]
 }

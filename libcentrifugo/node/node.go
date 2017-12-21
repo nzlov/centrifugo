@@ -771,14 +771,14 @@ func (n *Node) History(ch string, skip, limit int) ([]proto.Message, int, error)
 		return []proto.Message{}, 0, proto.ErrInvalidMessage
 	}
 
-	chOpts, err := n.ChannelOpts(ch)
-	if err != nil {
-		return []proto.Message{}, 0, err
-	}
+	// chOpts, err := n.ChannelOpts(ch)
+	// if err != nil {
+	// 	return []proto.Message{}, 0, err
+	// }
 
-	if chOpts.HistorySize <= 0 || chOpts.HistoryLifetime <= 0 {
-		return []proto.Message{}, 0, proto.ErrNotAvailable
-	}
+	// if chOpts.HistorySize <= 0 || chOpts.HistoryLifetime <= 0 {
+	// 	return []proto.Message{}, 0, proto.ErrNotAvailable
+	// }
 
 	metricsRegistry.Counters.Inc("node_num_history")
 
