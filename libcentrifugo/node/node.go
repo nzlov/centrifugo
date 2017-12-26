@@ -730,9 +730,9 @@ func (n *Node) AddPresence(ch string, uid string, info proto.ClientInfo) error {
 }
 
 // RemovePresence proxies presence removing to engine.
-func (n *Node) RemovePresence(ch string, uid string) error {
+func (n *Node) RemovePresence(ch, uid, user string) error {
 	metricsRegistry.Counters.Inc("node_num_remove_presence")
-	return n.engine.RemovePresence(ch, uid)
+	return n.engine.RemovePresence(ch, uid, user)
 }
 
 // Presence returns a map of active clients in project channel.

@@ -45,7 +45,7 @@ type Engine interface {
 	// AddPresence sets or updates presence info in channel for connection with uid.
 	AddPresence(ch string, connID string, info proto.ClientInfo, expire int) error
 	// RemovePresence removes presence information for connection with uid.
-	RemovePresence(ch string, connID string) error
+	RemovePresence(ch, connID, user string) error
 	// Presence returns actual presence information for channel.
 	Presence(ch string) (map[string]proto.ClientInfo, error)
 

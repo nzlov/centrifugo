@@ -254,11 +254,25 @@ func (e *MgoEngine) Unsubscribe(ch string) error {
 
 // AddPresence adds client info into presence hub.
 func (e *MgoEngine) AddPresence(ch string, uid string, info proto.ClientInfo, expire int) error {
+	logger.DEBUG.Println("Presence:Add :", ch, uid, info)
+	chs := strings.Split(ch, ":")
+	if len(chs) == 2 {
+		session := e.sessionDupl()
+		defer session.Close()
+		session.DB(e.config.DB).C("presence").Upsert(bson.M{"user": info.User, "channel": chs[0]}, bson.M{"$set": bson.M{"channelid": chs[1], "online": true}})
+	}
 	return e.presenceHub.add(ch, uid, info)
 }
 
 // RemovePresence removes client info from presence hub.
-func (e *MgoEngine) RemovePresence(ch string, uid string) error {
+func (e *MgoEngine) RemovePresence(ch, uid, user string) error {
+	logger.DEBUG.Println("Presence:Remove :", ch, uid, user)
+	chs := strings.Split(ch, ":")
+	if len(chs) == 2 {
+		session := e.sessionDupl()
+		defer session.Close()
+		session.DB(e.config.DB).C("presence").Upsert(bson.M{"user": user, "channel": chs[0]}, bson.M{"$set": bson.M{"online": false}})
+	}
 	return e.presenceHub.remove(ch, uid)
 }
 

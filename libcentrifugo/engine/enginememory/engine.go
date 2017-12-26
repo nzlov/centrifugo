@@ -133,7 +133,7 @@ func (e *MemoryEngine) AddPresence(ch string, uid string, info proto.ClientInfo,
 }
 
 // RemovePresence removes client info from presence hub.
-func (e *MemoryEngine) RemovePresence(ch string, uid string) error {
+func (e *MemoryEngine) RemovePresence(ch, uid, user string) error {
 	return e.presenceHub.remove(ch, uid)
 }
 
