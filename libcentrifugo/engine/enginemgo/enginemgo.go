@@ -257,6 +257,12 @@ func (e *MgoEngine) AddPresence(ch string, uid string, info proto.ClientInfo, ex
 	logger.DEBUG.Println("Presence:Add :", ch, uid, info)
 	chs := strings.Split(ch, ":")
 	if len(chs) == 2 {
+		key := "presence_" + ch + "_" + info.User
+		if _, has := e.expireCache.Get(key); has {
+			e.expireCache.Set(key, 1, cache.DefaultExpiration)
+			return nil
+		}
+		e.expireCache.Set(key, 1, cache.DefaultExpiration)
 		session := e.sessionDupl()
 		defer session.Close()
 		session.DB(e.config.DB).C("presence").Upsert(bson.M{"user": info.User, "channel": chs[0]}, bson.M{"$set": bson.M{"channelid": chs[1], "online": true}})
@@ -269,6 +275,7 @@ func (e *MgoEngine) RemovePresence(ch, uid, user string) error {
 	logger.DEBUG.Println("Presence:Remove :", ch, uid, user)
 	chs := strings.Split(ch, ":")
 	if len(chs) == 2 {
+		e.expireCache.Delete("presence_" + ch + "_" + user)
 		session := e.sessionDupl()
 		defer session.Close()
 		session.DB(e.config.DB).C("presence").Upsert(bson.M{"user": user, "channel": chs[0]}, bson.M{"$set": bson.M{"online": false}})
@@ -302,7 +309,7 @@ func (e *MgoEngine) ReadMessage(ch, msgid string) (bool, error) {
 		tb = chs[0]
 	}
 
-	err := session.DB(e.config.DB).C(tb).Update(bson.M{"uid": msgid}, bson.M{"$set": bson.M{"read": true}})
+	err := session.DB(e.config.DB).C(tb).Update(bson.M{"channel": ch, "uid": msgid}, bson.M{"$set": bson.M{"read": true}})
 	if err != nil {
 		logger.ERROR.Println("Engine Mgo:ReadMessage:has Error:", err)
 		return false, err
