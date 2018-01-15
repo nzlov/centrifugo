@@ -20,20 +20,24 @@
     },{
       "name": "shops",
       "watch": true,
-      "presence": true
+      "publish": true,
+      "presence": true,
+      "recover":true
     },{
       "name": "printers",
       "watch": true,
-      "presence": true
+      "presence": true,
+      "recover":true
     },{
       "name": "employees",
       "watch": true,
-      "presence": true
+      "presence": true,
+      "recover":true
     } ,{
       "name": "users",
       "watch": true,
-      "join_leave": true,
       "presence": true,
+      "publish": true,
       "recover":true
     }  
   ]

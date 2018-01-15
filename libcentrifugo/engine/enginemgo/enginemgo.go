@@ -2,10 +2,11 @@ package enginemgo
 
 import (
 	"encoding/json"
-	"errors"
 	"strings"
 	"sync"
 	"time"
+
+	"kabao/app/models"
 
 	"github.com/nzlov/centrifugo/libcentrifugo/channel"
 	"github.com/nzlov/centrifugo/libcentrifugo/config"
@@ -14,6 +15,8 @@ import (
 	"github.com/nzlov/centrifugo/libcentrifugo/node"
 	"github.com/nzlov/centrifugo/libcentrifugo/plugin"
 	"github.com/nzlov/centrifugo/libcentrifugo/proto"
+	"github.com/nzlov/centrifugo/libcentrifugo/raw"
+	"github.com/tidwall/gjson"
 
 	"github.com/nzlov/go-cache"
 	mgo "gopkg.in/mgo.v2"
@@ -32,16 +35,30 @@ func Configure(setter config.Setter) error {
 	setter.StringFlag("mgo_dupl", "", "clone", "mgo dupl (Mgo engine)")
 	setter.StringFlag("mgo_db", "", "centrifugo", "mgo db (Mgo engine)")
 
+	setter.StringFlag("mgo_jpush_merchant_key", "", "931402db6613187d7a9383e3", "mgo db (Mgo engine)")
+	setter.StringFlag("mgo_jpush_merchant_secret", "", "45eef5afcc117a5ac476d5a8", "mgo db (Mgo engine)")
+	setter.StringFlag("mgo_jpush_consumer_key", "", "6f14b16a0b966bf90f3efd92", "mgo db (Mgo engine)")
+	setter.StringFlag("mgo_jpush_consumer_secret", "", "65ceef7409918f5d7ca44a58", "mgo db (Mgo engine)")
+
+	setter.StringFlag("mgo_jpush_url", "", "https://api.jpush.cn", "mgo db (Mgo engine)")
+	setter.StringFlag("mgo_jpush_device", "", "https://device.jpush.cn", "mgo db (Mgo engine)")
+	setter.StringFlag("mgo_jpush_report", "", "https://report.jpush.cn", "mgo db (Mgo engine)")
+
 	bindFlags := []string{
-		"mgo_url", "mgo_dupl", "mgo_db",
+		"mgo_url",
+		"mgo_dupl",
+		"mgo_db",
+		"mgo_jpush_merchant_key",
+		"mgo_jpush_merchant_secret",
+		"mgo_jpush_consumer_key",
+		"mgo_jpush_consumer_secret",
+		"mgo_jpush_url",
+		"mgo_jpush_device",
+		"mgo_jpush_report",
 	}
 	for _, flag := range bindFlags {
+		setter.BindEnv(flag)
 		setter.BindFlag(flag, flag)
-	}
-
-	bindEnvs := []string{"mgo_url", "mgo_dupl", "mgo_db"}
-	for _, env := range bindEnvs {
-		setter.BindEnv(env)
 	}
 
 	return nil
@@ -59,16 +76,33 @@ type MgoEngine struct {
 // Plugin returns new memory engine.
 func Plugin(n *node.Node, c config.Getter) (engine.Engine, error) {
 	return New(n, &Config{
-		URL:  c.GetString("mgo_url"),
-		Dupl: c.GetString("mgo_dupl"),
-		DB:   c.GetString("mgo_db"),
+		URL:                 c.GetString("mgo_url"),
+		Dupl:                c.GetString("mgo_dupl"),
+		DB:                  c.GetString("mgo_db"),
+		JPushMerchantKey:    c.GetString("mgo_jpush_merchant_key"),
+		JPushMerchantSecret: c.GetString("mgo_jpush_merchant_secret"),
+		JPushConsumerKey:    c.GetString("mgo_jpush_consumer_key"),
+		JPushConsumerSecret: c.GetString("mgo_jpush_consumer_secret"),
+
+		JpushUrl:       c.GetString("mgo_jpush_url"),
+		JpushDeviceUrl: c.GetString("mgo_jpush_device"),
+		JpushReportUrl: c.GetString("mgo_jpush_report"),
 	})
 }
 
 type Config struct {
-	URL  string
-	Dupl string
-	DB   string
+	URL   string
+	Dupl  string
+	DB    string
+	Redis string
+
+	JPushMerchantKey    string
+	JPushMerchantSecret string
+	JPushConsumerKey    string
+	JPushConsumerSecret string
+	JpushUrl            string
+	JpushDeviceUrl      string
+	JpushReportUrl      string
 }
 
 // New initializes Memory Engine.
@@ -107,13 +141,28 @@ func (e *MgoEngine) Run() error {
 	e.expireCache.OnEvicted(func(k string, v interface{}) {
 		logger.DEBUG.Println("Mgo Read Expire Cache:Evicted:", k)
 	})
+
+	models.JpushUrl = e.config.JpushUrl
+	models.JpushDeviceUrl = e.config.JpushDeviceUrl
+	models.JpushReportUrl = e.config.JpushReportUrl
+
+	models.JPUSHKEYS["merchant"] = models.JPUSHKEY{
+		Key:    e.config.JPushMerchantKey,
+		Sercet: e.config.JPushMerchantSecret,
+	}
+	models.JPUSHKEYS["consume"] = models.JPUSHKEY{
+		Key:    e.config.JPushConsumerKey,
+		Sercet: e.config.JPushConsumerSecret,
+	}
+
 	return nil
 }
 
 // Shutdown shuts down engine.
 func (e *MgoEngine) Shutdown() error {
 	e.expireCache.OnEvicted(nil)
-	return errors.New("Shutdown not implemented")
+
+	return nil
 }
 
 type presenceHub struct {
@@ -178,13 +227,77 @@ func (h *presenceHub) get(ch string) (map[string]proto.ClientInfo, error) {
 	return data, nil
 }
 
+func (e *MgoEngine) Forbidden(raw.Raw) bool {
+	return false
+}
+func (e *MgoEngine) Permission(eid, permission string) bool {
+	session := e.sessionDupl()
+	defer session.Close()
+	einfo := models.GetEmployeeInfo(session, bson.M{"employeeid": eid, "permissions": bson.M{"$in": []string{permission}}})
+	if einfo.EmployeeId == eid {
+		return true
+	}
+	return false
+}
+
 // PublishMessage adds message into history hub and calls node ClientMsg method to handle message.
 // We don't have any PUB/SUB here as Memory Engine is single node only.
 func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options) <-chan error {
 	logger.DEBUG.Println("Engine Mgo:PublishMessage:", message)
 	session := e.sessionDupl()
 	defer session.Close()
+	eChan := make(chan error, 2)
 
+	gjsons := gjson.ParseBytes([]byte(message.Data))
+	t := gjsons.Get("type")
+	logger.DEBUG.Println("Engine Mgo:PublishMessage:", t)
+	if t.Exists() {
+		switch t.String() {
+		case "chat":
+			chat := models.CentrifugoMessageChat{}
+			err := json.Unmarshal([]byte(message.Data), &chat)
+			if err != nil {
+				logger.ERROR.Println("PublishMessage chat type Message:", string(message.Data), err)
+				eChan <- proto.ErrInvalidMessage
+				return eChan
+			}
+			logger.DEBUG.Println("Engine Mgo:PublishMessage:", chat)
+			ch := strings.Split(message.Channel, ":")
+			if len(ch) == 2 {
+				switch ch[0] {
+				case "users":
+					logger.DEBUG.Println("Engine Mgo:PublishMessage:users")
+					//发给顾客端
+					logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", models.CentrifugoOfflineJPush(session, "a_consume", message.UID, message.Channel, chat))
+					//发给店铺
+					newMessage := proto.NewMessage(chat.To, []byte(message.Data), message.Client, message.Info)
+					logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage")
+					e.publishMessage(session, newMessage, eChan)
+					err = <-eChan
+					logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
+
+					logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", models.CentrifugoOfflineJPush(session, "a_marchant", newMessage.UID, chat.To, chat))
+				case "shops":
+					logger.DEBUG.Println("Engine Mgo:PublishMessage:shops")
+					//发给店铺
+					models.CentrifugoOfflineJPush(session, "a_marchant", message.UID, message.Channel, chat)
+					//发给顾客端
+					chat.From = message.Channel
+					data, _ := json.Marshal(&chat)
+					newMessage := proto.NewMessage(chat.To, data, message.Client, message.Info)
+					e.publishMessage(session, newMessage, eChan)
+					models.CentrifugoOfflineJPush(session, "a_consume", newMessage.UID, chat.To, chat)
+				}
+			}
+		}
+	}
+
+	e.publishMessage(session, message, eChan)
+	logger.DEBUG.Println("Engine Mgo:PublishMessage OK.")
+	return eChan
+}
+
+func (e *MgoEngine) publishMessage(session *mgo.Session, message *proto.Message, eChan chan error) {
 	ch := message.Channel
 
 	chs := strings.Split(ch, ":")
@@ -202,15 +315,14 @@ func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options
 		"timestamp": message.Timestamp,
 		"addtime":   time.Now(),
 	})
-	eChan := make(chan error, 1)
 	if err != nil {
 		logger.ERROR.Println("Engine Mgo:Publish Message Insert Has Error:", err)
 		eChan <- err
-		return eChan
+		return
 	}
+	logger.DEBUG.Println("Engine Mgo:publishMessage:", message)
 
 	eChan <- e.node.ClientMsg(message)
-	return eChan
 }
 
 // PublishJoin - see Engine interface description.

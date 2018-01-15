@@ -3,6 +3,7 @@ package engine
 import (
 	"github.com/nzlov/centrifugo/libcentrifugo/channel"
 	"github.com/nzlov/centrifugo/libcentrifugo/proto"
+	"github.com/nzlov/centrifugo/libcentrifugo/raw"
 )
 
 // Engine is an interface with all methods that can be used by client or
@@ -55,4 +56,6 @@ type Engine interface {
 	// Integer limit sets the max amount of messages that must be returned. 0 means no limit - i.e.
 	// return all history messages (actually limited by configured history_size).
 	History(ch string, skip, limit int) ([]proto.Message, int, error)
+
+	Forbidden(raw.Raw) bool
 }

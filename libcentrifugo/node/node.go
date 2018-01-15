@@ -14,6 +14,7 @@ import (
 	"github.com/nzlov/centrifugo/libcentrifugo/logger"
 	"github.com/nzlov/centrifugo/libcentrifugo/metrics"
 	"github.com/nzlov/centrifugo/libcentrifugo/proto"
+	"github.com/nzlov/centrifugo/libcentrifugo/raw"
 	"github.com/satori/go.uuid"
 )
 
@@ -442,6 +443,10 @@ func makeErrChan(err error) <-chan error {
 	ret := make(chan error, 1)
 	ret <- err
 	return ret
+}
+
+func (n *Node) Forbidden(r raw.Raw) bool {
+	return n.engine.Forbidden(r)
 }
 
 // Publish sends a message to all clients subscribed on channel. All running nodes

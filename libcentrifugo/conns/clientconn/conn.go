@@ -907,6 +907,12 @@ func (c *client) publishCmd(cmd *proto.PublishClientCommand) (proto.Response, er
 		Channel: channel,
 	}
 
+	if c.node.Forbidden(data) {
+		resp := proto.NewClientPublishResponse(body)
+		resp.SetErr(proto.ResponseError{proto.ErrForbiddenMessage, proto.ErrorAdviceFix})
+		return resp, nil
+	}
+
 	if string(channel) == "" || len(data) == 0 {
 		resp := proto.NewClientPublishResponse(body)
 		resp.SetErr(proto.ResponseError{proto.ErrInvalidMessage, proto.ErrorAdviceFix})

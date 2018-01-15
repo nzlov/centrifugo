@@ -7,6 +7,8 @@ import (
 var (
 	// ErrInvalidMessage means that you sent invalid message to Centrifugo.
 	ErrInvalidMessage = errors.New("invalid message")
+
+	ErrForbiddenMessage = errors.New("Forbidden word")
 	// ErrMethodNotFound means that method sent in command does not exist.
 	ErrMethodNotFound = errors.New("method not found")
 	// ErrNamespaceNotFound means that namespace in channel name does not exist.
