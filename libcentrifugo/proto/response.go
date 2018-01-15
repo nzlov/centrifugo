@@ -207,8 +207,9 @@ type UnsubscribeBody struct {
 
 // PublishBody represents body of response in case of successful publish command.
 type PublishBody struct {
-	Channel string `json:"channel"`
-	Status  bool   `json:"status"`
+	Channel string  `json:"channel"`
+	Status  bool    `json:"status"`
+	Message Message `json:"message"`
 }
 
 // PingBody represents body of response in case of successful ping command.

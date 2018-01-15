@@ -964,6 +964,7 @@ func (c *client) publishCmd(cmd *proto.PublishClientCommand) (proto.Response, er
 
 	// message successfully published to engine.
 	body.Status = true
+	body.Message = *message
 
 	return proto.NewClientPublishResponse(body), nil
 }
