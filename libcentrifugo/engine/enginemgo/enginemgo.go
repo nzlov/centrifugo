@@ -280,13 +280,13 @@ func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options
 				case "shops":
 					logger.DEBUG.Println("Engine Mgo:PublishMessage:shops")
 					//发给店铺
-					models.CentrifugoOfflineJPush(session, "a_marchant", message.UID, message.Channel, chat)
+					logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", models.CentrifugoOfflineJPush(session, "a_marchant", message.UID, message.Channel, chat))
 					//发给顾客端
 					chat.From = message.Channel
 					data, _ := json.Marshal(&chat)
 					newMessage := proto.NewMessage(chat.To, data, message.Client, message.Info)
 					e.publishMessage(session, newMessage, eChan)
-					models.CentrifugoOfflineJPush(session, "a_consume", newMessage.UID, chat.To, chat)
+					logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", models.CentrifugoOfflineJPush(session, "a_consume", newMessage.UID, chat.To, chat))
 				}
 			}
 		}
@@ -366,7 +366,7 @@ func (e *MgoEngine) Unsubscribe(ch string) error {
 
 // AddPresence adds client info into presence hub.
 func (e *MgoEngine) AddPresence(ch string, uid string, info proto.ClientInfo, expire int) error {
-	logger.DEBUG.Println("Presence:Add :", ch, uid, info)
+	//	logger.DEBUG.Println("Presence:Add :", ch, uid, info)
 	chs := strings.Split(ch, ":")
 	if len(chs) == 2 {
 		key := "presence_" + ch + "_" + info.User
@@ -384,7 +384,7 @@ func (e *MgoEngine) AddPresence(ch string, uid string, info proto.ClientInfo, ex
 
 // RemovePresence removes client info from presence hub.
 func (e *MgoEngine) RemovePresence(ch, uid, user string) error {
-	logger.DEBUG.Println("Presence:Remove :", ch, uid, user)
+	//	logger.DEBUG.Println("Presence:Remove :", ch, uid, user)
 	chs := strings.Split(ch, ":")
 	if len(chs) == 2 {
 		e.expireCache.Delete("presence_" + ch + "_" + user)
@@ -436,7 +436,7 @@ func (e *MgoEngine) ReadMessage(ch, msgid string) (bool, error) {
 		logger.ERROR.Println("Engine Mgo:ReadMessage:Marshal:", resp)
 		return true, nil
 	}
-	e.node.ClientHub().Broadcast(ch, byteMessage)
+	e.node.ClientHub().Broadcast(ch, byteMessage, "")
 	return true, nil
 }
 

@@ -12,7 +12,7 @@ type ClientHub interface {
 	Remove(c ClientConn) error
 	AddSub(ch string, c ClientConn) (bool, error)
 	RemoveSub(ch string, c ClientConn) (bool, error)
-	Broadcast(ch string, message []byte) error
+	Broadcast(ch string, message []byte, uid string) error
 	NumSubscribers(ch string) int
 	NumClients() int
 	NumUniqueClients() int
@@ -197,7 +197,7 @@ func (h *clientHub) RemoveSub(ch string, c ClientConn) (bool, error) {
 }
 
 // Broadcast sends message to all clients subscribed on channel.
-func (h *clientHub) Broadcast(ch string, message []byte) error {
+func (h *clientHub) Broadcast(ch string, message []byte, auid string) error {
 	h.RLock()
 	defer h.RUnlock()
 
@@ -211,6 +211,9 @@ func (h *clientHub) Broadcast(ch string, message []byte) error {
 	msg := NewQueuedMessage(message, true)
 
 	for uid := range channelSubscriptions {
+		if uid == auid {
+			continue
+		}
 		c, ok := h.conns[uid]
 		if !ok {
 			continue

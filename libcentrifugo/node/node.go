@@ -404,7 +404,7 @@ func (n *Node) ClientMsg(msg *proto.Message) error {
 	if err != nil {
 		return err
 	}
-	return n.clients.Broadcast(ch, byteMessage)
+	return n.clients.Broadcast(ch, byteMessage, msg.Client)
 }
 
 // JoinMsg handles JoinMessage.
@@ -420,7 +420,7 @@ func (n *Node) JoinMsg(msg *proto.JoinMessage) error {
 	if err != nil {
 		return err
 	}
-	return n.clients.Broadcast(ch, byteMessage)
+	return n.clients.Broadcast(ch, byteMessage, "")
 }
 
 // LeaveMsg handles leave message.
@@ -436,7 +436,7 @@ func (n *Node) LeaveMsg(msg *proto.LeaveMessage) error {
 	if err != nil {
 		return err
 	}
-	return n.clients.Broadcast(ch, byteMessage)
+	return n.clients.Broadcast(ch, byteMessage, "")
 }
 
 func makeErrChan(err error) <-chan error {
