@@ -392,7 +392,7 @@ func (c *client) handleCommands(cmds []proto.ClientCommand) error {
 
 // handleCmd dispatches clientCommand into correct command handler
 func (c *client) handleCmd(command proto.ClientCommand) (proto.Response, error) {
-	logger.DEBUG.Printf("%v[%v]HandleCmd:%v", c.User, c.uid, command)
+	logger.DEBUG.Printf("%v[%v]HandleCmd:%v", c.User, c.uid, command.Method)
 
 	c.Lock()
 	defer c.Unlock()
@@ -684,6 +684,7 @@ func recoverMessages(last string, messages []proto.Message) ([]proto.Message, bo
 		// exist now.
 		return messages, false
 	}
+
 	position := -1
 	for index, msg := range messages {
 		if msg.UID == last {
@@ -816,8 +817,9 @@ func (c *client) subscribeCmd(cmd *proto.SubscribeClientCommand) (proto.Response
 				logger.ERROR.Printf("can't recover messages for channel %s: %s", string(channel), err)
 				body.Messages = []proto.Message{}
 			} else {
+				logger.DEBUG.Println("revocerMessage", cmd)
 				recoveredMessages, recovered := recoverMessages(cmd.Last, messages)
-				//		logger.ERROR.Printf("recoveredMessages:%+v\n", recoveredMessages)
+				//				logger.ERROR.Printf("user[%v]channel[%v]recoveredMessages:%+v\n", c.user, channel, recoveredMessages)
 				body.Messages = recoveredMessages
 				body.Recovered = recovered
 			}

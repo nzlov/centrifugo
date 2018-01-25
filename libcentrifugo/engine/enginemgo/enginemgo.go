@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/revel/revel"
+
 	"kabao/app/models"
 
 	"github.com/nzlov/centrifugo/libcentrifugo/channel"
@@ -35,6 +37,8 @@ func Configure(setter config.Setter) error {
 	setter.StringFlag("mgo_dupl", "", "clone", "mgo dupl (Mgo engine)")
 	setter.StringFlag("mgo_db", "", "centrifugo", "mgo db (Mgo engine)")
 
+	setter.StringFlag("mgo_mode", "", "dev", "mgo run mode (Mgo engine)")
+
 	setter.StringFlag("mgo_jpush_merchant_key", "", "931402db6613187d7a9383e3", "mgo db (Mgo engine)")
 	setter.StringFlag("mgo_jpush_merchant_secret", "", "45eef5afcc117a5ac476d5a8", "mgo db (Mgo engine)")
 	setter.StringFlag("mgo_jpush_consumer_key", "", "6f14b16a0b966bf90f3efd92", "mgo db (Mgo engine)")
@@ -48,6 +52,7 @@ func Configure(setter config.Setter) error {
 		"mgo_url",
 		"mgo_dupl",
 		"mgo_db",
+		"mgo_mode",
 		"mgo_jpush_merchant_key",
 		"mgo_jpush_merchant_secret",
 		"mgo_jpush_consumer_key",
@@ -79,6 +84,7 @@ func Plugin(n *node.Node, c config.Getter) (engine.Engine, error) {
 		URL:                 c.GetString("mgo_url"),
 		Dupl:                c.GetString("mgo_dupl"),
 		DB:                  c.GetString("mgo_db"),
+		Mode:                c.GetString("mgo_mode"),
 		JPushMerchantKey:    c.GetString("mgo_jpush_merchant_key"),
 		JPushMerchantSecret: c.GetString("mgo_jpush_merchant_secret"),
 		JPushConsumerKey:    c.GetString("mgo_jpush_consumer_key"),
@@ -95,6 +101,7 @@ type Config struct {
 	Dupl  string
 	DB    string
 	Redis string
+	Mode  string
 
 	JPushMerchantKey    string
 	JPushMerchantSecret string
@@ -112,6 +119,12 @@ func New(n *node.Node, conf *Config) (*MgoEngine, error) {
 		presenceHub: newPresenceHub(),
 		config:      conf,
 		expireCache: cache.New(time.Minute, 2*time.Minute),
+	}
+	switch conf.Mode {
+	case "prod":
+		revel.DevMode = false
+	default:
+		revel.DevMode = true
 	}
 	return e, nil
 }
@@ -276,11 +289,11 @@ func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options
 					err = <-eChan
 					logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
 
-					logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", models.CentrifugoOfflineJPush(session, "a_marchant", newMessage.UID, chat.To, chat))
+					logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", models.CentrifugoOfflineJPush(session, "a_merchant", newMessage.UID, chat.To, chat))
 				case "shops":
 					logger.DEBUG.Println("Engine Mgo:PublishMessage:shops")
 					//发给店铺
-					logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", models.CentrifugoOfflineJPush(session, "a_marchant", message.UID, message.Channel, chat))
+					logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", models.CentrifugoOfflineJPush(session, "a_merchant", message.UID, message.Channel, chat))
 					//发给顾客端
 					chat.From = message.Channel
 					data, _ := json.Marshal(&chat)
@@ -456,7 +469,7 @@ func (e *MgoEngine) History(ch string, skip, limit int) ([]proto.Message, int, e
 		tb = chs[0]
 	}
 
-	total, err := session.DB(e.config.DB).C(tb).Count()
+	total, err := session.DB(e.config.DB).C(tb).Find(bson.M{"channel": ch}).Count()
 	if err != nil {
 		logger.ERROR.Println("Engine Mgo:History:Count:has Error:", err)
 		return []proto.Message{}, 0, proto.ErrInvalidMessage
@@ -478,6 +491,7 @@ func (e *MgoEngine) History(ch string, skip, limit int) ([]proto.Message, int, e
 	if err != nil {
 		return []proto.Message{}, 0, proto.ErrInvalidMessage
 	}
+	logger.DEBUG.Println("Engine Mgo:History:Has:", total, len(msgs))
 	return msgs, total, nil
 }
 
