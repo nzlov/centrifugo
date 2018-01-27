@@ -819,19 +819,18 @@ func (c *client) subscribeCmd(cmd *proto.SubscribeClientCommand) (proto.Response
 			} else {
 				logger.DEBUG.Println("revocerMessage", cmd)
 				recoveredMessages, recovered := recoverMessages(cmd.Last, messages)
-				//				logger.ERROR.Printf("user[%v]channel[%v]recoveredMessages:%+v\n", c.user, channel, recoveredMessages)
+				logger.ERROR.Printf("user[%v] channel[%v] recoveredMessages:lastid[%v]:%+v\n", c.user, channel, cmd.Last, len(recoveredMessages))
 				body.Messages = recoveredMessages
 				body.Recovered = recovered
 			}
+		}
+		//	logger.ERROR.Println("No cmd.Recover")
+		// Client don't want to recover messages yet, we just return last message id to him here.
+		lastMessageID, err := c.node.LastMessageID(channel)
+		if err != nil {
+			logger.ERROR.Println(err)
 		} else {
-			//	logger.ERROR.Println("No cmd.Recover")
-			// Client don't want to recover messages yet, we just return last message id to him here.
-			lastMessageID, err := c.node.LastMessageID(channel)
-			if err != nil {
-				logger.ERROR.Println(err)
-			} else {
-				body.Last = lastMessageID
-			}
+			body.Last = lastMessageID
 		}
 	}
 

@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/revel/revel"
-
 	"kabao/app/models"
 
 	"github.com/nzlov/centrifugo/libcentrifugo/channel"
@@ -122,9 +120,9 @@ func New(n *node.Node, conf *Config) (*MgoEngine, error) {
 	}
 	switch conf.Mode {
 	case "prod":
-		revel.DevMode = false
+		models.SysModelDev = false
 	default:
-		revel.DevMode = true
+		models.SysModelDev = true
 	}
 	return e, nil
 }
