@@ -36,6 +36,7 @@ func Configure(setter config.Setter) error {
 	setter.StringFlag("mgo_db", "", "centrifugo", "mgo db (Mgo engine)")
 
 	setter.StringFlag("mgo_mode", "", "dev", "mgo run mode (Mgo engine)")
+	setter.IntFlag("mgo_go", "", 10, "mgo run mgo goroutine num (Mgo engine)")
 
 	setter.StringFlag("mgo_jpush_merchant_key", "", "931402db6613187d7a9383e3", "mgo db (Mgo engine)")
 	setter.StringFlag("mgo_jpush_merchant_secret", "", "45eef5afcc117a5ac476d5a8", "mgo db (Mgo engine)")
@@ -51,6 +52,7 @@ func Configure(setter config.Setter) error {
 		"mgo_dupl",
 		"mgo_db",
 		"mgo_mode",
+		"mgo_go",
 		"mgo_jpush_merchant_key",
 		"mgo_jpush_merchant_secret",
 		"mgo_jpush_consumer_key",
@@ -74,6 +76,8 @@ type MgoEngine struct {
 	presenceHub *presenceHub
 	config      *Config
 	expireCache *cache.Cache
+
+	mgoMessageChan chan *proto.Message
 }
 
 // Plugin returns new memory engine.
@@ -83,6 +87,7 @@ func Plugin(n *node.Node, c config.Getter) (engine.Engine, error) {
 		Dupl:                c.GetString("mgo_dupl"),
 		DB:                  c.GetString("mgo_db"),
 		Mode:                c.GetString("mgo_mode"),
+		Go:                  c.GetInt("mgo_go"),
 		JPushMerchantKey:    c.GetString("mgo_jpush_merchant_key"),
 		JPushMerchantSecret: c.GetString("mgo_jpush_merchant_secret"),
 		JPushConsumerKey:    c.GetString("mgo_jpush_consumer_key"),
@@ -100,6 +105,7 @@ type Config struct {
 	DB    string
 	Redis string
 	Mode  string
+	Go    int
 
 	JPushMerchantKey    string
 	JPushMerchantSecret string
@@ -166,6 +172,10 @@ func (e *MgoEngine) Run() error {
 		Sercet: e.config.JPushConsumerSecret,
 	}
 
+	e.mgoMessageChan = make(chan *proto.Message, e.config.Go*50)
+	for i := 0; i < e.config.Go; i++ {
+		go e.mgoSave()
+	}
 	return nil
 }
 
@@ -174,68 +184,6 @@ func (e *MgoEngine) Shutdown() error {
 	e.expireCache.OnEvicted(nil)
 
 	return nil
-}
-
-type presenceHub struct {
-	sync.RWMutex
-	presence map[string]map[string]proto.ClientInfo
-}
-
-func newPresenceHub() *presenceHub {
-	return &presenceHub{
-		presence: make(map[string]map[string]proto.ClientInfo),
-	}
-}
-
-func (h *presenceHub) add(ch string, uid string, info proto.ClientInfo) error {
-	h.Lock()
-	defer h.Unlock()
-
-	_, ok := h.presence[ch]
-	if !ok {
-		h.presence[ch] = make(map[string]proto.ClientInfo)
-	}
-	h.presence[ch][uid] = info
-	return nil
-}
-
-func (h *presenceHub) remove(ch string, uid string) error {
-	h.Lock()
-	defer h.Unlock()
-
-	if _, ok := h.presence[ch]; !ok {
-		return nil
-	}
-	if _, ok := h.presence[ch][uid]; !ok {
-		return nil
-	}
-
-	delete(h.presence[ch], uid)
-
-	// clean up map if needed
-	if len(h.presence[ch]) == 0 {
-		delete(h.presence, ch)
-	}
-
-	return nil
-}
-
-func (h *presenceHub) get(ch string) (map[string]proto.ClientInfo, error) {
-	h.RLock()
-	defer h.RUnlock()
-
-	presence, ok := h.presence[ch]
-	if !ok {
-		// return empty map
-		return map[string]proto.ClientInfo{}, nil
-	}
-
-	var data map[string]proto.ClientInfo
-	data = make(map[string]proto.ClientInfo, len(presence))
-	for k, v := range presence {
-		data[k] = v
-	}
-	return data, nil
 }
 
 func (e *MgoEngine) Forbidden(raw.Raw) bool {
@@ -249,6 +197,34 @@ func (e *MgoEngine) Permission(eid, permission string) bool {
 		return true
 	}
 	return false
+}
+
+func (e *MgoEngine) mgoSave() {
+	session := e.sessionDupl()
+	defer session.Close()
+
+	for message := range e.mgoMessageChan {
+		ch := message.Channel
+
+		chs := strings.Split(ch, ":")
+		tb := "default"
+		if len(chs) >= 2 {
+			tb = chs[0]
+		}
+		err := session.DB(e.config.DB).C(tb).Insert(bson.M{
+			"uid":       message.UID,
+			"channel":   message.Channel,
+			"client":    message.Client,
+			"data":      message.Data,
+			"info":      message.Info,
+			"read":      message.Read,
+			"timestamp": message.Timestamp,
+			"addtime":   time.Now(),
+		})
+		if err != nil {
+			logger.ERROR.Println("Engine Mgo:Publish Message Insert Has Error:", err)
+		}
+	}
 }
 
 // PublishMessage adds message into history hub and calls node ClientMsg method to handle message.
@@ -279,28 +255,20 @@ func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options
 				if len(ch) == 2 {
 					switch ch[0] {
 					case "users":
-						logger.DEBUG.Println("Engine Mgo:PublishMessage:users")
-						//发给顾客端
-						logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", models.CentrifugoOfflineJPush(session, "a_consume", message.UID, message.Channel, chat))
-
 						//发给店铺
 						newMessage := proto.NewMessage(chat.To, []byte(message.Data), message.Client, message.Info)
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage")
 						e.publishMessage(newMessage, eChan)
 						err = <-eChan
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
-
-						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", models.CentrifugoOfflineJPush(session, "a_merchant", newMessage.UID, chat.To, chat))
+						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", models.CentrifugoOfflineJPush(session, "a_merchant", strings.Split(chat.To, ":")[1], newMessage.UID, chat.To, chat))
 					case "shops":
-						logger.DEBUG.Println("Engine Mgo:PublishMessage:shops")
-						//发给店铺
-						logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", models.CentrifugoOfflineJPush(session, "a_merchant", message.UID, message.Channel, chat))
 						//发给顾客端
 						chat.From = message.Channel
 						data, _ := json.Marshal(&chat)
 						newMessage := proto.NewMessage(chat.To, data, message.Client, message.Info)
 						e.publishMessage(newMessage, eChan)
-						logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", models.CentrifugoOfflineJPush(session, "a_consume", newMessage.UID, chat.To, chat))
+						logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", models.CentrifugoOfflineJPush(session, "a_consume", "", newMessage.UID, chat.To, chat))
 					}
 				}
 			}
@@ -313,35 +281,8 @@ func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options
 }
 
 func (e *MgoEngine) publishMessage(message *proto.Message, eChan chan error) {
-	go func() {
-		session := e.sessionDupl()
-		defer session.Close()
-
-		ch := message.Channel
-
-		chs := strings.Split(ch, ":")
-		tb := "default"
-		if len(chs) >= 2 {
-			tb = chs[0]
-		}
-		err := session.DB(e.config.DB).C(tb).Insert(bson.M{
-			"uid":       message.UID,
-			"channel":   message.Channel,
-			"client":    message.Client,
-			"data":      message.Data,
-			"info":      message.Info,
-			"read":      message.Read,
-			"timestamp": message.Timestamp,
-			"addtime":   time.Now(),
-		})
-		if err != nil {
-			logger.ERROR.Println("Engine Mgo:Publish Message Insert Has Error:", err)
-			eChan <- err
-			return
-		}
-		logger.DEBUG.Println("Engine Mgo:publishMessage:", message)
-	}()
-
+	e.mgoMessageChan <- message
+	logger.DEBUG.Println("Engine Mgo:publishMessage:", message)
 	eChan <- e.node.ClientMsg(message)
 }
 
@@ -505,4 +446,66 @@ func (e *MgoEngine) History(ch string, skip, limit int) ([]proto.Message, int, e
 // Channels returns all channels node currently subscribed on.
 func (e *MgoEngine) Channels() ([]string, error) {
 	return e.node.ClientHub().Channels(), nil
+}
+
+type presenceHub struct {
+	sync.RWMutex
+	presence map[string]map[string]proto.ClientInfo
+}
+
+func newPresenceHub() *presenceHub {
+	return &presenceHub{
+		presence: make(map[string]map[string]proto.ClientInfo),
+	}
+}
+
+func (h *presenceHub) add(ch string, uid string, info proto.ClientInfo) error {
+	h.Lock()
+	defer h.Unlock()
+
+	_, ok := h.presence[ch]
+	if !ok {
+		h.presence[ch] = make(map[string]proto.ClientInfo)
+	}
+	h.presence[ch][uid] = info
+	return nil
+}
+
+func (h *presenceHub) remove(ch string, uid string) error {
+	h.Lock()
+	defer h.Unlock()
+
+	if _, ok := h.presence[ch]; !ok {
+		return nil
+	}
+	if _, ok := h.presence[ch][uid]; !ok {
+		return nil
+	}
+
+	delete(h.presence[ch], uid)
+
+	// clean up map if needed
+	if len(h.presence[ch]) == 0 {
+		delete(h.presence, ch)
+	}
+
+	return nil
+}
+
+func (h *presenceHub) get(ch string) (map[string]proto.ClientInfo, error) {
+	h.RLock()
+	defer h.RUnlock()
+
+	presence, ok := h.presence[ch]
+	if !ok {
+		// return empty map
+		return map[string]proto.ClientInfo{}, nil
+	}
+
+	var data map[string]proto.ClientInfo
+	data = make(map[string]proto.ClientInfo, len(presence))
+	for k, v := range presence {
+		data[k] = v
+	}
+	return data, nil
 }
