@@ -268,6 +268,7 @@ func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options
 						data, _ := json.Marshal(&chat)
 						newMessage := proto.NewMessage(chat.To, data, message.Client, message.Info)
 						e.publishMessage(newMessage, eChan)
+						err = <-eChan
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", models.CentrifugoOfflineJPush(session, "a_consume", "", newMessage.UID, chat.To, chat))
 					}
 				}
