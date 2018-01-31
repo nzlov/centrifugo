@@ -265,6 +265,8 @@ func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options
 					case "shops":
 						//发给顾客端
 						chat.From = message.Channel
+						shopinfo := models.GetShopInfo(session, bson.M{"shopid": ch[1]})
+						chat.Name = shopinfo.ShopName
 						data, _ := json.Marshal(&chat)
 						newMessage := proto.NewMessage(chat.To, data, message.Client, message.Info)
 						e.publishMessage(newMessage, eChan)

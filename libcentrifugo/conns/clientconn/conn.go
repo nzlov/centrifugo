@@ -392,7 +392,7 @@ func (c *client) handleCommands(cmds []proto.ClientCommand) error {
 
 // handleCmd dispatches clientCommand into correct command handler
 func (c *client) handleCmd(command proto.ClientCommand) (proto.Response, error) {
-	logger.DEBUG.Printf("%v[%v]HandleCmd:%v", c.User, c.uid, command.Method)
+	logger.DEBUG.Printf("%v[%v]HandleCmd:%v", c.User(), c.uid, command.Method)
 
 	c.Lock()
 	defer c.Unlock()
