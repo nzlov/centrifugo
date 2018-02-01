@@ -765,8 +765,8 @@ func (n *Node) Presence(ch string) (map[string]proto.ClientInfo, error) {
 	}
 	return presence, nil
 }
-func (n *Node) ReadMessage(ch, msgid string) (bool, error) {
-	return n.engine.ReadMessage(ch, msgid)
+func (n *Node) ReadMessage(ch, msgid, uid string) (bool, error) {
+	return n.engine.ReadMessage(ch, msgid, uid)
 }
 
 // History returns a slice of last messages published into project channel.

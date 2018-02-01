@@ -364,7 +364,7 @@ func (e *MgoEngine) Presence(ch string) (map[string]proto.ClientInfo, error) {
 	return e.presenceHub.get(ch)
 }
 
-func (e *MgoEngine) ReadMessage(ch, msgid string) (bool, error) {
+func (e *MgoEngine) ReadMessage(ch, msgid, uid string) (bool, error) {
 	logger.DEBUG.Println("Engine Mgo:ReadMessage:", ch, msgid)
 	if ch == "" || msgid == "" {
 		logger.ERROR.Println("Engine Mgo:ReadMessage:", ch, msgid)
@@ -400,7 +400,7 @@ func (e *MgoEngine) ReadMessage(ch, msgid string) (bool, error) {
 		logger.ERROR.Println("Engine Mgo:ReadMessage:Marshal:", resp)
 		return true, nil
 	}
-	e.node.ClientHub().Broadcast(ch, byteMessage, "")
+	e.node.ClientHub().Broadcast(ch, byteMessage, uid)
 	return true, nil
 }
 
