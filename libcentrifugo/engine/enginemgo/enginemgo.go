@@ -69,6 +69,10 @@ func Configure(setter config.Setter) error {
 	return nil
 }
 
+type message struct {
+	message *proto.Message
+	errChan chan error
+}
 type MgoEngine struct {
 	session     *mgo.Session
 	sessionDupl func() *mgo.Session
@@ -77,7 +81,7 @@ type MgoEngine struct {
 	config      *Config
 	expireCache *cache.Cache
 
-	mgoMessageChan chan *proto.Message
+	mgoMessageChan chan *message
 }
 
 // Plugin returns new memory engine.
@@ -172,10 +176,11 @@ func (e *MgoEngine) Run() error {
 		Sercet: e.config.JPushConsumerSecret,
 	}
 
-	e.mgoMessageChan = make(chan *proto.Message, e.config.Go*50)
+	e.mgoMessageChan = make(chan *message, e.config.Go*10)
 	for i := 0; i < e.config.Go; i++ {
 		go e.mgoSave()
 	}
+
 	return nil
 }
 
@@ -198,69 +203,70 @@ func (e *MgoEngine) Permission(eid, permission string) bool {
 	}
 	return false
 }
+func (e *MgoEngine) mgosave(session *mgo.Session, message *proto.Message) error {
+	ch := message.Channel
 
+	chs := strings.Split(ch, ":")
+	tb := "default"
+	if len(chs) >= 2 {
+		tb = chs[0]
+	}
+	err := session.DB(e.config.DB).C(tb).Insert(bson.M{
+		"uid":       message.UID,
+		"channel":   message.Channel,
+		"client":    message.Client,
+		"data":      message.Data,
+		"info":      message.Info,
+		"read":      message.Read,
+		"timestamp": message.Timestamp,
+		"addtime":   time.Now(),
+	})
+	if err != nil {
+		logger.ERROR.Println("Engine Mgo:Publish Message Insert Has Error:", err)
+		return err
+	}
+	return nil
+}
 func (e *MgoEngine) mgoSave() {
 	session := e.sessionDupl()
 	defer session.Close()
+	for m := range e.mgoMessageChan {
+		defer func() {
+			if err := recover(); err != nil {
+				logger.ERROR.Println(err)
+			}
+		}()
+		message := m.message
+		errChan := m.errChan
 
-	for message := range e.mgoMessageChan {
-		ch := message.Channel
-
-		chs := strings.Split(ch, ":")
-		tb := "default"
-		if len(chs) >= 2 {
-			tb = chs[0]
+		if err := e.mgosave(session, message); err != nil {
+			errChan <- err
+			continue
 		}
-		err := session.DB(e.config.DB).C(tb).Insert(bson.M{
-			"uid":       message.UID,
-			"channel":   message.Channel,
-			"client":    message.Client,
-			"data":      message.Data,
-			"info":      message.Info,
-			"read":      message.Read,
-			"timestamp": message.Timestamp,
-			"addtime":   time.Now(),
-		})
-		if err != nil {
-			logger.ERROR.Println("Engine Mgo:Publish Message Insert Has Error:", err)
-		}
-	}
-}
+		errChan <- e.node.ClientMsg(message)
 
-// PublishMessage adds message into history hub and calls node ClientMsg method to handle message.
-// We don't have any PUB/SUB here as Memory Engine is single node only.
-func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options) <-chan error {
-	logger.DEBUG.Println("Engine Mgo:PublishMessage:", message)
-	eChan := make(chan error, 2)
-
-	gjsons := gjson.ParseBytes([]byte(message.Data))
-	t := gjsons.Get("type")
-	logger.DEBUG.Println("Engine Mgo:PublishMessage:", t)
-	if t.Exists() {
-		go func() {
-
-			session := e.sessionDupl()
-			defer session.Close()
-
+		gjsons := gjson.ParseBytes([]byte(message.Data))
+		t := gjsons.Get("type")
+		logger.DEBUG.Println("Engine Mgo:PublishMessage:", t)
+		if t.Exists() {
 			switch t.String() {
 			case "chat":
 				chat := models.CentrifugoMessageChat{}
 				err := json.Unmarshal([]byte(message.Data), &chat)
 				if err != nil {
 					logger.ERROR.Println("PublishMessage chat type Message:", string(message.Data), err)
-					return
+					continue
 				}
-				logger.DEBUG.Println("Engine Mgo:PublishMessage:", chat)
 				ch := strings.Split(message.Channel, ":")
 				if len(ch) == 2 {
 					switch ch[0] {
 					case "users":
 						//发给店铺
 						newMessage := proto.NewMessage(chat.To, []byte(message.Data), message.Client, message.Info)
-						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage")
-						e.publishMessage(newMessage, eChan)
-						err = <-eChan
-						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
+						if err := e.mgosave(session, newMessage); err != nil {
+							continue
+						}
+						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", e.node.ClientMsg(newMessage))
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", models.CentrifugoOfflineJPush(session, "a_merchant", strings.Split(chat.To, ":")[1], newMessage.UID, chat.To, chat))
 					case "shops":
 						//发给顾客端
@@ -269,24 +275,34 @@ func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options
 						chat.Name = shopinfo.ShopName
 						data, _ := json.Marshal(&chat)
 						newMessage := proto.NewMessage(chat.To, data, message.Client, message.Info)
-						e.publishMessage(newMessage, eChan)
-						err = <-eChan
+						if err := e.mgosave(session, newMessage); err != nil {
+							continue
+						}
+						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", e.node.ClientMsg(newMessage))
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", models.CentrifugoOfflineJPush(session, "a_consume", "", newMessage.UID, chat.To, chat))
 					}
 				}
 			}
-		}()
+		}
 	}
+}
+
+// PublishMessage adds message into history hub and calls node ClientMsg method to handle message.
+// We don't have any PUB/SUB here as Memory Engine is single node only.
+func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options) <-chan error {
+	logger.DEBUG.Println("Engine Mgo:PublishMessage:", message)
+	eChan := make(chan error)
 
 	e.publishMessage(message, eChan)
 	logger.DEBUG.Println("Engine Mgo:PublishMessage OK.")
 	return eChan
 }
 
-func (e *MgoEngine) publishMessage(message *proto.Message, eChan chan error) {
-	e.mgoMessageChan <- message
-	logger.DEBUG.Println("Engine Mgo:publishMessage:", message)
-	eChan <- e.node.ClientMsg(message)
+func (e *MgoEngine) publishMessage(m *proto.Message, eChan chan error) {
+	e.mgoMessageChan <- &message{
+		message: m,
+		errChan: eChan,
+	}
 }
 
 // PublishJoin - see Engine interface description.
