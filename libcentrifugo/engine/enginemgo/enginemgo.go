@@ -172,7 +172,7 @@ func (e *MgoEngine) Run() error {
 		Sercet: e.config.JPushConsumerSecret,
 	}
 
-	e.mgoMessageChan = make(chan *proto.Message, e.config.Go*50)
+	e.mgoMessageChan = make(chan *proto.Message, e.config.Go)
 	for i := 0; i < e.config.Go; i++ {
 		go e.mgoSave()
 	}
@@ -204,8 +204,49 @@ func (e *MgoEngine) mgoSave() {
 	defer session.Close()
 
 	for message := range e.mgoMessageChan {
-		ch := message.Channel
+		defer func() {
+			if err := recover(); err != nil {
+				logger.ERROR.Println(err)
+			}
+		}()
 
+		ch := message.Channel
+		gjsons := gjson.ParseBytes([]byte(message.Data))
+		t := gjsons.Get("type")
+		logger.DEBUG.Println("Engine Mgo:PublishMessage:", t)
+		if t.Exists() {
+			switch t.String() {
+			case "chat":
+				chat := models.CentrifugoMessageChat{}
+				err := json.Unmarshal([]byte(message.Data), &chat)
+				if err != nil {
+					logger.ERROR.Println("PublishMessage chat type Message:", string(message.Data), err)
+					return
+				}
+				logger.DEBUG.Println("Engine Mgo:PublishMessage:", chat)
+				ch := strings.Split(message.Channel, ":")
+				if len(ch) == 2 {
+					switch ch[0] {
+					case "users":
+						//发给店铺
+						newMessage := proto.NewMessage(chat.To, []byte(message.Data), message.Client, message.Info)
+						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage")
+						e.node.ClientMsg(newMessage)
+						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
+						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", models.CentrifugoOfflineJPush(session, "a_merchant", strings.Split(chat.To, ":")[1], newMessage.UID, chat.To, chat))
+					case "shops":
+						//发给顾客端
+						chat.From = message.Channel
+						shopinfo := models.GetShopInfo(session, bson.M{"shopid": ch[1]})
+						chat.Name = shopinfo.ShopName
+						data, _ := json.Marshal(&chat)
+						newMessage := proto.NewMessage(chat.To, data, message.Client, message.Info)
+						e.node.ClientMsg(newMessage)
+						logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", models.CentrifugoOfflineJPush(session, "a_consume", "", newMessage.UID, chat.To, chat))
+					}
+				}
+			}
+		}
 		chs := strings.Split(ch, ":")
 		tb := "default"
 		if len(chs) >= 2 {
@@ -232,51 +273,6 @@ func (e *MgoEngine) mgoSave() {
 func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options) <-chan error {
 	logger.DEBUG.Println("Engine Mgo:PublishMessage:", message)
 	eChan := make(chan error, 2)
-
-	gjsons := gjson.ParseBytes([]byte(message.Data))
-	t := gjsons.Get("type")
-	logger.DEBUG.Println("Engine Mgo:PublishMessage:", t)
-	if t.Exists() {
-		go func() {
-
-			session := e.sessionDupl()
-			defer session.Close()
-
-			switch t.String() {
-			case "chat":
-				chat := models.CentrifugoMessageChat{}
-				err := json.Unmarshal([]byte(message.Data), &chat)
-				if err != nil {
-					logger.ERROR.Println("PublishMessage chat type Message:", string(message.Data), err)
-					return
-				}
-				logger.DEBUG.Println("Engine Mgo:PublishMessage:", chat)
-				ch := strings.Split(message.Channel, ":")
-				if len(ch) == 2 {
-					switch ch[0] {
-					case "users":
-						//发给店铺
-						newMessage := proto.NewMessage(chat.To, []byte(message.Data), message.Client, message.Info)
-						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage")
-						e.publishMessage(newMessage, eChan)
-						err = <-eChan
-						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
-						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", models.CentrifugoOfflineJPush(session, "a_merchant", strings.Split(chat.To, ":")[1], newMessage.UID, chat.To, chat))
-					case "shops":
-						//发给顾客端
-						chat.From = message.Channel
-						shopinfo := models.GetShopInfo(session, bson.M{"shopid": ch[1]})
-						chat.Name = shopinfo.ShopName
-						data, _ := json.Marshal(&chat)
-						newMessage := proto.NewMessage(chat.To, data, message.Client, message.Info)
-						e.publishMessage(newMessage, eChan)
-						err = <-eChan
-						logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", models.CentrifugoOfflineJPush(session, "a_consume", "", newMessage.UID, chat.To, chat))
-					}
-				}
-			}
-		}()
-	}
 
 	e.publishMessage(message, eChan)
 	logger.DEBUG.Println("Engine Mgo:PublishMessage OK.")
