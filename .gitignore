@@ -6,3 +6,6 @@ FlameGraph
 torch.svg
 protoc-3*
 .vscode
+config.json
+config.json.prod
+
