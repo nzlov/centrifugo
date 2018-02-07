@@ -8,7 +8,7 @@
   "publish": false,
   "watch": true,
   "recover":true,
-  "history_size": 10,
+  "history_lifetime": 604800,
   "namespaces": [
     {
       "name": "public",
