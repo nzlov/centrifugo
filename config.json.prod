@@ -1,0 +1,46 @@
+{
+  "secret": "109AF84FWF45AS4S5W8F",
+  "web": true,
+  "log_level":"trace",
+  "admin_password": "shengyun",
+  "admin_secret": "109AWD4FWGE5A484S5W8F",
+  "mgo_url":"mongodb://root:shengyun123root@shanshou.mongo.host:27027",
+  "publish": false,
+  "watch": true,
+  "recover":true,
+  "history_size": 10,
+  "namespaces": [
+    {
+      "name": "public",
+      "publish": true,
+      "watch": true,
+      "presence": true,
+      "join_leave": true,
+      "history_size": 10,
+      "history_lifetime": 30,
+      "recover":true
+    },{
+      "name": "shops",
+      "watch": true,
+      "publish": true,
+      "presence": true,
+      "recover":true
+    },{
+      "name": "printers",
+      "watch": true,
+      "presence": true,
+      "recover":true
+    },{
+      "name": "employees",
+      "watch": true,
+      "presence": true,
+      "recover":true
+    } ,{
+      "name": "users",
+      "watch": true,
+      "presence": true,
+      "publish": true,
+      "recover":true
+    }  
+  ]
+}
