@@ -6,7 +6,10 @@
   "admin_password": "shengyun",
   "admin_secret": "109AWD4FWF45A484S5W8F",
   "mgo_url":"mongodb://shanshou:shengyun123@shanshou.mongo.host:27017",
-  "publish": true,
+  "publish": false,
+  "watch": true,
+  "history_lifetime": 604800,
+  "recover":true,
   "namespaces": [
     {
       "name": "public",

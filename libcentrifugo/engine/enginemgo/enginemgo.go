@@ -26,6 +26,7 @@ import (
 func init() {
 	plugin.RegisterEngine("mgo", Plugin)
 	plugin.RegisterConfigurator("mgo", Configure)
+
 }
 
 // Configure is a Configurator function for Redis engine.
@@ -435,8 +436,9 @@ func (e *MgoEngine) History(ch string, skip, limit int) ([]proto.Message, int, e
 	if len(chs) >= 2 {
 		tb = chs[0]
 	}
-
-	total, err := session.DB(e.config.DB).C(tb).Find(bson.M{"channel": ch}).Count()
+	query := bson.M{"channel": ch, "timestamp": bson.M{"$gte": time.Now().Add(-time.Hour * 168).UnixNano()}}
+	logger.DEBUG.Printf("Query:%+v\n", query)
+	total, err := session.DB(e.config.DB).C(tb).Find(query).Count()
 	if err != nil {
 		logger.ERROR.Println("Engine Mgo:History:Count:has Error:", err)
 		return []proto.Message{}, 0, proto.ErrInvalidMessage
@@ -454,7 +456,7 @@ func (e *MgoEngine) History(ch string, skip, limit int) ([]proto.Message, int, e
 
 	logger.DEBUG.Println("Engine Mgo:History:", ch, sort, skip, limit)
 
-	err = session.DB(e.config.DB).C(tb).Find(bson.M{"channel": ch}).Sort(sort).Skip(skip).Limit(limit).All(&msgs)
+	err = session.DB(e.config.DB).C(tb).Find(query).Sort(sort).Skip(skip).Limit(limit).All(&msgs)
 	if err != nil {
 		return []proto.Message{}, 0, proto.ErrInvalidMessage
 	}
