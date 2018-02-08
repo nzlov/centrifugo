@@ -23,6 +23,7 @@
     },{
       "name": "shops",
       "watch": true,
+      "publish": true,
       "presence": true
     },{
       "name": "printers",
@@ -36,6 +37,7 @@
       "name": "users",
       "watch": true,
       "join_leave": true,
+      "publish": true,
       "presence": true,
       "recover":true
     }  
