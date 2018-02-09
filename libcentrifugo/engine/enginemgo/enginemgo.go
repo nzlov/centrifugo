@@ -214,9 +214,12 @@ func (e *MgoEngine) mgosave(session *mgo.Session, message *proto.Message) error 
 	}
 
 	databakup := map[string]interface{}{}
-	logger.ERROR.Println(json.Unmarshal([]byte(message.Data), &databakup))
+	err := json.Unmarshal([]byte(message.Data), &databakup)
+	if err != nil {
+		logger.ERROR.Println("mgosave databakup has error :", err)
+	}
 
-	err := session.DB(e.config.DB).C(tb).Insert(bson.M{
+	err = session.DB(e.config.DB).C(tb).Insert(bson.M{
 		"uid":       message.UID,
 		"channel":   message.Channel,
 		"client":    message.Client,
@@ -228,7 +231,7 @@ func (e *MgoEngine) mgosave(session *mgo.Session, message *proto.Message) error 
 		"databakup": databakup,
 	})
 	if err != nil {
-		// logger.ERROR.Println("Engine Mgo:Publish Message Insert Has Error:", err)
+		logger.ERROR.Println("Engine Mgo:Publish Message Insert Has Error:", err)
 		return err
 	}
 	return nil
@@ -253,14 +256,14 @@ func (e *MgoEngine) mgoSave() {
 
 		gjsons := gjson.ParseBytes([]byte(message.Data))
 		t := gjsons.Get("type")
-		// logger.DEBUG.Println("Engine Mgo:PublishMessage:", t)
+		logger.DEBUG.Println("Engine Mgo:PublishMessage:", t)
 		if t.Exists() {
 			switch t.String() {
 			case "chat":
 				chat := models.CentrifugoMessageChat{}
 				err := json.Unmarshal([]byte(message.Data), &chat)
 				if err != nil {
-					// logger.ERROR.Println("PublishMessage chat type Message:", string(message.Data), err)
+					logger.ERROR.Println("PublishMessage chat type Message:", string(message.Data), err)
 					continue
 				}
 				ch := strings.Split(message.Channel, ":")
@@ -273,9 +276,9 @@ func (e *MgoEngine) mgoSave() {
 							continue
 						}
 						err = e.node.ClientMsg(newMessage)
-						// logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
+						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
 						err = models.CentrifugoOfflineJPush(session, "a_merchant", strings.Split(chat.To, ":")[1], newMessage.UID, chat.To, chat)
-						// logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", err)
+						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", err)
 					case "shops":
 						//发给顾客端
 						chat.From = message.Channel
@@ -287,9 +290,9 @@ func (e *MgoEngine) mgoSave() {
 							continue
 						}
 						err = e.node.ClientMsg(newMessage)
-						// logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
+						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
 						err = models.CentrifugoOfflineJPush(session, "a_consume", "", newMessage.UID, chat.To, chat)
-						// logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", err)
+						logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", err)
 					}
 				}
 			}
@@ -300,11 +303,11 @@ func (e *MgoEngine) mgoSave() {
 // PublishMessage adds message into history hub and calls node ClientMsg method to handle message.
 // We don't have any PUB/SUB here as Memory Engine is single node only.
 func (e *MgoEngine) PublishMessage(message *proto.Message, opts *channel.Options) <-chan error {
-	// logger.DEBUG.Println("Engine Mgo:PublishMessage:", message)
+	logger.DEBUG.Println("Engine Mgo:PublishMessage:", message)
 	eChan := make(chan error)
 
 	e.publishMessage(message, eChan)
-	// logger.DEBUG.Println("Engine Mgo:PublishMessage OK.")
+	logger.DEBUG.Println("Engine Mgo:PublishMessage OK.")
 	return eChan
 }
 
@@ -391,9 +394,8 @@ func (e *MgoEngine) Presence(ch string) (map[string]proto.ClientInfo, error) {
 }
 
 func (e *MgoEngine) ReadMessage(ch, msgid, uid string) (bool, error) {
-	// logger.DEBUG.Println("Engine Mgo:ReadMessage:", ch, msgid)
 	if ch == "" || msgid == "" {
-		// logger.ERROR.Println("Engine Mgo:ReadMessage:", ch, msgid)
+		logger.ERROR.Println("Engine Mgo:ReadMessage:", ch, msgid)
 		return false, proto.ErrInvalidMessage
 	}
 
@@ -403,6 +405,7 @@ func (e *MgoEngine) ReadMessage(ch, msgid, uid string) (bool, error) {
 	}
 	e.expireCache.Set(key, 1, cache.DefaultExpiration)
 
+	logger.DEBUG.Println("Engine Mgo:ReadMessage:", ch, uid, msgid)
 	session := e.sessionDupl()
 	defer session.Close()
 	chs := strings.Split(ch, ":")
@@ -413,7 +416,7 @@ func (e *MgoEngine) ReadMessage(ch, msgid, uid string) (bool, error) {
 
 	err := session.DB(e.config.DB).C(tb).Update(bson.M{"channel": ch, "uid": msgid}, bson.M{"$set": bson.M{"read": true}})
 	if err != nil {
-		// logger.ERROR.Println("Engine Mgo:ReadMessage:has Error:", err)
+		logger.ERROR.Println("Engine Mgo:ReadMessage:has Error:", err)
 		return false, err
 	}
 	resp := proto.NewClientReadResponse(proto.ReadBody{
@@ -423,7 +426,7 @@ func (e *MgoEngine) ReadMessage(ch, msgid, uid string) (bool, error) {
 	})
 	byteMessage, err := json.Marshal(resp)
 	if err != nil {
-		// logger.ERROR.Println("Engine Mgo:ReadMessage:Marshal:", resp)
+		logger.ERROR.Println("Engine Mgo:ReadMessage:Marshal:", resp)
 		return true, nil
 	}
 	e.node.ClientHub().Broadcast(ch, byteMessage, uid)
@@ -432,9 +435,9 @@ func (e *MgoEngine) ReadMessage(ch, msgid, uid string) (bool, error) {
 
 // History extracts history from history hub.
 func (e *MgoEngine) History(ch string, skip, limit int) ([]proto.Message, int, error) {
-	// logger.DEBUG.Println("Engine Mgo:History:", ch, skip, limit)
+	logger.DEBUG.Println("Engine Mgo:History:", ch, skip, limit)
 	if ch == "" {
-		// logger.ERROR.Println("Engine Mgo:History:", ch, skip, limit)
+		logger.ERROR.Println("Engine Mgo:History:", ch, skip, limit)
 		return []proto.Message{}, 0, proto.ErrInvalidMessage
 	}
 	session := e.sessionDupl()
@@ -446,10 +449,10 @@ func (e *MgoEngine) History(ch string, skip, limit int) ([]proto.Message, int, e
 		tb = chs[0]
 	}
 	query := bson.M{"channel": ch, "timestamp": bson.M{"$gte": time.Now().Add(-time.Hour * 168).UnixNano()}}
-	// logger.DEBUG.Printf("Query:%+v\n", query)
+	logger.DEBUG.Printf("Query:%+v\n", query)
 	total, err := session.DB(e.config.DB).C(tb).Find(query).Count()
 	if err != nil {
-		// logger.ERROR.Println("Engine Mgo:History:Count:has Error:", err)
+		logger.ERROR.Println("Engine Mgo:History:Count:has Error:", err)
 		return []proto.Message{}, 0, proto.ErrInvalidMessage
 	}
 	msgs := []proto.Message{}
@@ -463,13 +466,13 @@ func (e *MgoEngine) History(ch string, skip, limit int) ([]proto.Message, int, e
 		limit = total
 	}
 
-	// logger.DEBUG.Println("Engine Mgo:History:", ch, sort, skip, limit)
+	logger.DEBUG.Println("Engine Mgo:History:", ch, sort, skip, limit)
 
 	err = session.DB(e.config.DB).C(tb).Find(query).Sort(sort).Skip(skip).Limit(limit).All(&msgs)
 	if err != nil {
 		return []proto.Message{}, 0, proto.ErrInvalidMessage
 	}
-	// logger.DEBUG.Println("Engine Mgo:History:Has:", total, len(msgs))
+	logger.DEBUG.Println("Engine Mgo:History:Has:", total, len(msgs))
 	return msgs, total, nil
 }
 

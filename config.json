@@ -24,15 +24,18 @@
       "name": "shops",
       "watch": true,
       "publish": true,
-      "presence": true
+      "presence": true,
+      "recover":true
     },{
       "name": "printers",
       "watch": true,
-      "presence": true
+      "presence": true,
+      "recover":true
     },{
       "name": "employees",
       "watch": true,
-      "presence": true
+      "presence": true,
+      "recover":true
     } ,{
       "name": "users",
       "watch": true,
