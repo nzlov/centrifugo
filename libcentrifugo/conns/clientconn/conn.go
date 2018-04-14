@@ -956,7 +956,7 @@ func (c *client) publishCmd(cmd *proto.PublishClientCommand) (proto.Response, er
 		}
 	}
 
-	err = <-c.node.Publish(message, &chOpts)
+	err = <-c.node.Publish(message, "", &chOpts)
 	if err != nil {
 		resp := proto.NewClientPublishResponse(body)
 		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceRetry})

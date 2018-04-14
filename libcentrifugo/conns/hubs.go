@@ -1,6 +1,7 @@
 package conns
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/nzlov/centrifugo/libcentrifugo/logger"
@@ -12,7 +13,7 @@ type ClientHub interface {
 	Remove(c ClientConn) error
 	AddSub(ch string, c ClientConn) (bool, error)
 	RemoveSub(ch string, c ClientConn) (bool, error)
-	Broadcast(ch string, message []byte, uid string) error
+	Broadcast(ch string, message []byte, uids, nuids string) error
 	NumSubscribers(ch string) int
 	NumClients() int
 	NumUniqueClients() int
@@ -197,7 +198,9 @@ func (h *clientHub) RemoveSub(ch string, c ClientConn) (bool, error) {
 }
 
 // Broadcast sends message to all clients subscribed on channel.
-func (h *clientHub) Broadcast(ch string, message []byte, auid string) error {
+// uids 需要推送的列表
+// nuids 不需要推送的列表 (优先级高于uids)
+func (h *clientHub) Broadcast(ch string, message []byte, uids, nuids string) error {
 	h.RLock()
 	defer h.RUnlock()
 
@@ -210,9 +213,27 @@ func (h *clientHub) Broadcast(ch string, message []byte, auid string) error {
 	// iterate over them and send message individually
 	msg := NewQueuedMessage(message, true)
 
+	uidss := strings.Split(uids, ",")
+	uidmap := map[string]struct{}{}
+	for _, uid := range uidss {
+		uidmap[uid] = struct{}{}
+	}
+	nuidss := strings.Split(uids, ",")
+	nuidmap := map[string]struct{}{}
+	for _, uid := range nuidss {
+		nuidmap[uid] = struct{}{}
+	}
+
 	for uid := range channelSubscriptions {
-		if uid == auid {
-			continue
+		if uids != "" {
+			if _, ok := uidmap[uid]; !ok {
+				continue
+			}
+		}
+		if nuids != "" {
+			if _, ok := nuidmap[uid]; ok {
+				continue
+			}
 		}
 		c, ok := h.conns[uid]
 		if !ok {

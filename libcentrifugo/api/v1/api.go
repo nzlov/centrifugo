@@ -170,6 +170,7 @@ func PublishCmd(n *node.Node, cmd proto.PublishAPICommand) (proto.Response, erro
 	ch := cmd.Channel
 	data := cmd.Data
 	client := cmd.Client
+	nclient := cmd.NClient
 
 	if string(ch) == "" || len(data) == 0 {
 		return nil, proto.ErrInvalidMessage
@@ -193,7 +194,7 @@ func PublishCmd(n *node.Node, cmd proto.PublishAPICommand) (proto.Response, erro
 		}
 	}
 
-	err = <-n.Publish(message, &chOpts)
+	err = <-n.Publish(message, nclient, &chOpts)
 
 	if err != nil {
 		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceNone})
@@ -208,6 +209,7 @@ func PublishCmdAsync(n *node.Node, cmd proto.PublishAPICommand) <-chan error {
 	ch := cmd.Channel
 	data := cmd.Data
 	client := cmd.Client
+	nclient := cmd.NClient
 
 	if string(ch) == "" || len(data) == 0 {
 		return makeErrChan(proto.ErrInvalidMessage)
@@ -228,7 +230,7 @@ func PublishCmdAsync(n *node.Node, cmd proto.PublishAPICommand) <-chan error {
 		}
 	}
 
-	return n.Publish(message, &chOpts)
+	return n.Publish(message, nclient, &chOpts)
 }
 
 // BroadcastCmd publishes data into multiple channels.
@@ -239,6 +241,7 @@ func BroadcastCmd(n *node.Node, cmd proto.BroadcastAPICommand) (proto.Response, 
 	channels := cmd.Channels
 	data := cmd.Data
 	client := cmd.Client
+	nclient := cmd.NClient
 
 	if len(channels) == 0 {
 		logger.ERROR.Println("channels required for broadcast")
@@ -276,7 +279,7 @@ func BroadcastCmd(n *node.Node, cmd proto.BroadcastAPICommand) (proto.Response, 
 			}
 		}
 
-		errs[i] = n.Publish(message, &chOpts)
+		errs[i] = n.Publish(message, nclient, &chOpts)
 	}
 
 	var firstErr error
@@ -301,6 +304,7 @@ func BroadcastCmdAsync(n *node.Node, cmd proto.BroadcastAPICommand) <-chan error
 	channels := cmd.Channels
 	data := cmd.Data
 	client := cmd.Client
+	nclient := cmd.NClient
 
 	if len(channels) == 0 {
 		logger.ERROR.Println("channels required for broadcast")
@@ -333,7 +337,7 @@ func BroadcastCmdAsync(n *node.Node, cmd proto.BroadcastAPICommand) <-chan error
 			}
 		}
 
-		n.Publish(message, &chOpts)
+		n.Publish(message, nclient, &chOpts)
 	}
 	return makeErrChan(nil)
 }

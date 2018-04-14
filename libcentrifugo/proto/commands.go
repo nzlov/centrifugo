@@ -133,6 +133,7 @@ type ReadClientCommand struct {
 type PublishAPICommand struct {
 	Channel string  `json:"channel"`
 	Client  string  `json:"client"`
+	NClient string  `json:"nclient"` //不发送的客户端列表
 	Data    raw.Raw `json:"data"`
 }
 
@@ -141,6 +142,7 @@ type BroadcastAPICommand struct {
 	Channels []string `json:"channels"`
 	Data     raw.Raw  `json:"data"`
 	Client   string   `json:"client"`
+	NClient  string   `json:"nclient"` //不发送的客户端列表
 }
 
 // UnsubscribeAPICommand is used to unsubscribe user from channel.
