@@ -42,5 +42,13 @@
       "publish": true,
       "recover":true
     }  
-  ]
+  ],
+  "appkeys": {
+    "web_merchant":"c31df7e10a",
+    "weixin_consume":"ce4b5bcce3",
+    "android_merchant":"57a883afde",
+    "android_consume":"df61ab0dfc",
+    "ios_merchant":"b46125f0fb",
+    "ios_consume":"50fsh419c4"
+  }
 }

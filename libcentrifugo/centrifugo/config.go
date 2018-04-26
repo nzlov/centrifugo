@@ -167,6 +167,7 @@ func newNodeConfig(v config.Getter) *node.Config {
 	cfg.HistoryDropInactive = v.GetBool("history_drop_inactive")
 	cfg.Recover = v.GetBool("recover")
 	cfg.Namespaces = namespacesFromConfig(v)
+	cfg.Appkeys = appkeyFromConfig(v)
 	return cfg
 }
 
@@ -192,6 +193,14 @@ func namespacesFromConfig(v config.Getter) []channel.Namespace {
 		return ns
 	}
 	v.UnmarshalKey("namespaces", &ns)
+	return ns
+}
+func appkeyFromConfig(v config.Getter) map[string]string {
+	ns := map[string]string{}
+	if !v.IsSet("appkeys") {
+		return ns
+	}
+	v.UnmarshalKey("appkeys", &ns)
 	return ns
 }
 
