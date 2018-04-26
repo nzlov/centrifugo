@@ -84,6 +84,8 @@ type ClientConn interface {
 	UID() string
 	// User return user ID associated with connection.
 	User() string
+
+	Appkey() string
 	// Channels returns a slice of channels connection subscribed to.
 	Channels() []string
 	// Handle message coming from client.

@@ -391,7 +391,7 @@ func (n *Node) AdminMsg(msg *proto.AdminMessage) error {
 // ClientMsg handles messages published by web application or client into channel.
 // The goal of this method to deliver this message to all clients on this node subscribed
 // on channel.
-func (n *Node) ClientMsg(msg *proto.Message, nids string) error {
+func (n *Node) ClientMsg(msg *proto.Message, appkey, nids string) error {
 	ch := msg.Channel
 	metricsRegistry.Counters.Inc("node_num_client_msg_received")
 	numSubscribers := n.clients.NumSubscribers(ch)
@@ -404,7 +404,7 @@ func (n *Node) ClientMsg(msg *proto.Message, nids string) error {
 	if err != nil {
 		return err
 	}
-	return n.clients.Broadcast(ch, byteMessage, msg.Client, nids)
+	return n.clients.Broadcast(ch, appkey, byteMessage, msg.Client, nids)
 }
 
 // JoinMsg handles JoinMessage.
@@ -420,7 +420,7 @@ func (n *Node) JoinMsg(msg *proto.JoinMessage) error {
 	if err != nil {
 		return err
 	}
-	return n.clients.Broadcast(ch, byteMessage, "", "")
+	return n.clients.Broadcast(ch, "", byteMessage, "", "")
 }
 
 // LeaveMsg handles leave message.
@@ -436,7 +436,7 @@ func (n *Node) LeaveMsg(msg *proto.LeaveMessage) error {
 	if err != nil {
 		return err
 	}
-	return n.clients.Broadcast(ch, byteMessage, "", "")
+	return n.clients.Broadcast(ch, "", byteMessage, "", "")
 }
 
 func makeErrChan(err error) <-chan error {
@@ -451,7 +451,7 @@ func (n *Node) Forbidden(r raw.Raw) bool {
 
 // Publish sends a message to all clients subscribed on channel. All running nodes
 // will receive it and will send it to all clients on node subscribed on channel.
-func (n *Node) Publish(msg *proto.Message, nuids string, opts *channel.Options) <-chan error {
+func (n *Node) Publish(msg *proto.Message, appkey, nuids string, opts *channel.Options) <-chan error {
 	if opts == nil {
 		chOpts, err := n.ChannelOpts(msg.Channel)
 		if err != nil {
@@ -460,7 +460,7 @@ func (n *Node) Publish(msg *proto.Message, nuids string, opts *channel.Options) 
 		opts = &chOpts
 	}
 	metricsRegistry.Counters.Inc("node_num_client_msg_published")
-	return n.engine.PublishMessage(msg, nuids, opts)
+	return n.engine.PublishMessage(msg, appkey, nuids, opts)
 }
 
 // PublishJoin allows to publish join message into channel when someone subscribes on it
@@ -765,8 +765,8 @@ func (n *Node) Presence(ch string) (map[string]proto.ClientInfo, error) {
 	}
 	return presence, nil
 }
-func (n *Node) ReadMessage(ch, msgid, uid string) (bool, error) {
-	return n.engine.ReadMessage(ch, msgid, uid)
+func (n *Node) ReadMessage(ch, appkey, msgid, uid string) (bool, error) {
+	return n.engine.ReadMessage(ch, appkey, msgid, uid)
 }
 
 // History returns a slice of last messages published into project channel.

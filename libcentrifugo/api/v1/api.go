@@ -168,6 +168,7 @@ func makeErrChan(err error) <-chan error {
 // PublishCmd publishes data into channel.
 func PublishCmd(n *node.Node, cmd proto.PublishAPICommand) (proto.Response, error) {
 	ch := cmd.Channel
+	appkey := cmd.Appkey
 	data := cmd.Data
 	client := cmd.Client
 	nclient := cmd.NClient
@@ -194,7 +195,7 @@ func PublishCmd(n *node.Node, cmd proto.PublishAPICommand) (proto.Response, erro
 		}
 	}
 
-	err = <-n.Publish(message, nclient, &chOpts)
+	err = <-n.Publish(message, appkey, nclient, &chOpts)
 
 	if err != nil {
 		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceNone})
@@ -207,6 +208,7 @@ func PublishCmd(n *node.Node, cmd proto.PublishAPICommand) (proto.Response, erro
 // PublishCmdAsync publishes data into channel without waiting for response.
 func PublishCmdAsync(n *node.Node, cmd proto.PublishAPICommand) <-chan error {
 	ch := cmd.Channel
+	appkey := cmd.Appkey
 	data := cmd.Data
 	client := cmd.Client
 	nclient := cmd.NClient
@@ -230,7 +232,7 @@ func PublishCmdAsync(n *node.Node, cmd proto.PublishAPICommand) <-chan error {
 		}
 	}
 
-	return n.Publish(message, nclient, &chOpts)
+	return n.Publish(message, appkey, nclient, &chOpts)
 }
 
 // BroadcastCmd publishes data into multiple channels.
@@ -239,6 +241,7 @@ func BroadcastCmd(n *node.Node, cmd proto.BroadcastAPICommand) (proto.Response, 
 	resp := proto.NewAPIBroadcastResponse()
 
 	channels := cmd.Channels
+	appkey := cmd.Appkey
 	data := cmd.Data
 	client := cmd.Client
 	nclient := cmd.NClient
@@ -279,7 +282,7 @@ func BroadcastCmd(n *node.Node, cmd proto.BroadcastAPICommand) (proto.Response, 
 			}
 		}
 
-		errs[i] = n.Publish(message, nclient, &chOpts)
+		errs[i] = n.Publish(message, appkey, nclient, &chOpts)
 	}
 
 	var firstErr error
@@ -303,6 +306,7 @@ func BroadcastCmdAsync(n *node.Node, cmd proto.BroadcastAPICommand) <-chan error
 
 	channels := cmd.Channels
 	data := cmd.Data
+	appkey := cmd.Appkey
 	client := cmd.Client
 	nclient := cmd.NClient
 
@@ -337,7 +341,7 @@ func BroadcastCmdAsync(n *node.Node, cmd proto.BroadcastAPICommand) <-chan error
 			}
 		}
 
-		n.Publish(message, nclient, &chOpts)
+		n.Publish(message, appkey, nclient, &chOpts)
 	}
 	return makeErrChan(nil)
 }

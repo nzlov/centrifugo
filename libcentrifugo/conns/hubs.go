@@ -13,7 +13,7 @@ type ClientHub interface {
 	Remove(c ClientConn) error
 	AddSub(ch string, c ClientConn) (bool, error)
 	RemoveSub(ch string, c ClientConn) (bool, error)
-	Broadcast(ch string, message []byte, uids, nuids string) error
+	Broadcast(ch, appkey string, message []byte, uids, nuids string) error
 	NumSubscribers(ch string) int
 	NumClients() int
 	NumUniqueClients() int
@@ -198,9 +198,10 @@ func (h *clientHub) RemoveSub(ch string, c ClientConn) (bool, error) {
 }
 
 // Broadcast sends message to all clients subscribed on channel.
+// appkey 需要推送平台列表
 // uids 需要推送的列表
 // nuids 不需要推送的列表 (优先级高于uids)
-func (h *clientHub) Broadcast(ch string, message []byte, uids, nuids string) error {
+func (h *clientHub) Broadcast(ch, appkey string, message []byte, uids, nuids string) error {
 	h.RLock()
 	defer h.RUnlock()
 
@@ -223,6 +224,11 @@ func (h *clientHub) Broadcast(ch string, message []byte, uids, nuids string) err
 	for _, uid := range nuidss {
 		nuidmap[uid] = struct{}{}
 	}
+	appkeys := strings.Split(appkey, ",")
+	appkeymap := map[string]struct{}{}
+	for _, k := range appkeys {
+		appkeymap[k] = struct{}{}
+	}
 
 	for uid := range channelSubscriptions {
 		if uids != "" {
@@ -238,6 +244,11 @@ func (h *clientHub) Broadcast(ch string, message []byte, uids, nuids string) err
 		c, ok := h.conns[uid]
 		if !ok {
 			continue
+		}
+		if appkey != "" {
+			if _, ok := appkeymap[c.Appkey()]; !ok {
+				continue
+			}
 		}
 		c.Send(msg)
 	}

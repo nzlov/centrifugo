@@ -122,6 +122,8 @@ type Config struct {
 
 	// Namespaces - list of namespaces for custom channel options.
 	Namespaces []channel.Namespace `json:"namespaces"`
+
+	Appkeys map[string]string `json:"appkeys"`
 }
 
 func stringInSlice(a string, list []string) bool {

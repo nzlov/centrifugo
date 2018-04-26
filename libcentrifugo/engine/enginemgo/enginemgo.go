@@ -72,6 +72,7 @@ func Configure(setter config.Setter) error {
 
 type message struct {
 	message *proto.Message
+	appkey  string
 	nuids   string
 	errChan chan error
 }
@@ -253,7 +254,7 @@ func (e *MgoEngine) mgoSave() {
 			errChan <- err
 			continue
 		}
-		errChan <- e.node.ClientMsg(message, m.nuids)
+		errChan <- e.node.ClientMsg(message, m.appkey, m.nuids)
 
 		gjsons := gjson.ParseBytes([]byte(message.Data))
 		t := gjsons.Get("type")
@@ -276,7 +277,7 @@ func (e *MgoEngine) mgoSave() {
 						if err := e.mgosave(session, newMessage); err != nil {
 							continue
 						}
-						err = e.node.ClientMsg(newMessage, "")
+						err = e.node.ClientMsg(newMessage, "", "")
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
 						err = models.CentrifugoOfflineJPush(session, "a_merchant", strings.Split(chat.To, ":")[1], newMessage.UID, chat.To, chat)
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", err)
@@ -290,7 +291,7 @@ func (e *MgoEngine) mgoSave() {
 						if err := e.mgosave(session, newMessage); err != nil {
 							continue
 						}
-						err = e.node.ClientMsg(newMessage, "")
+						err = e.node.ClientMsg(newMessage, "", "")
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
 						err = models.CentrifugoOfflineJPush(session, "a_consume", "", newMessage.UID, chat.To, chat)
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", err)
@@ -303,19 +304,20 @@ func (e *MgoEngine) mgoSave() {
 
 // PublishMessage adds message into history hub and calls node ClientMsg method to handle message.
 // We don't have any PUB/SUB here as Memory Engine is single node only.
-func (e *MgoEngine) PublishMessage(message *proto.Message, nuids string, opts *channel.Options) <-chan error {
+func (e *MgoEngine) PublishMessage(message *proto.Message, appkey, nuids string, opts *channel.Options) <-chan error {
 	logger.DEBUG.Println("Engine Mgo:PublishMessage:", message)
 	eChan := make(chan error)
 
-	e.publishMessage(message, nuids, eChan)
+	e.publishMessage(message, appkey, nuids, eChan)
 	logger.DEBUG.Println("Engine Mgo:PublishMessage OK.")
 	return eChan
 }
 
-func (e *MgoEngine) publishMessage(m *proto.Message, nuids string, eChan chan error) {
+func (e *MgoEngine) publishMessage(m *proto.Message, appkey, nuids string, eChan chan error) {
 	e.mgoMessageChan <- &message{
 		message: m,
 		errChan: eChan,
+		appkey:  appkey,
 		nuids:   nuids,
 	}
 }
@@ -395,7 +397,7 @@ func (e *MgoEngine) Presence(ch string) (map[string]proto.ClientInfo, error) {
 	return e.presenceHub.get(ch)
 }
 
-func (e *MgoEngine) ReadMessage(ch, msgid, uid string) (bool, error) {
+func (e *MgoEngine) ReadMessage(ch, appkey, msgid, uid string) (bool, error) {
 	if ch == "" || msgid == "" {
 		logger.ERROR.Println("Engine Mgo:ReadMessage:", ch, msgid)
 		return false, proto.ErrInvalidMessage
@@ -431,7 +433,7 @@ func (e *MgoEngine) ReadMessage(ch, msgid, uid string) (bool, error) {
 		logger.ERROR.Println("Engine Mgo:ReadMessage:Marshal:", resp)
 		return true, nil
 	}
-	e.node.ClientHub().Broadcast(ch, byteMessage, "", uid)
+	e.node.ClientHub().Broadcast(ch, appkey, byteMessage, "", uid)
 	return true, nil
 }
 

@@ -25,7 +25,7 @@ type Engine interface {
 	// The returned value is channel in which we will send error as soon as engine finishes
 	// publish operation. Also the task of this method is to maintain history for channels
 	// if enabled.
-	PublishMessage(*proto.Message, string, *channel.Options) <-chan error
+	PublishMessage(*proto.Message, string, string, *channel.Options) <-chan error
 	// PublishJoin allows to send join message into channel.
 	PublishJoin(*proto.JoinMessage, *channel.Options) <-chan error
 	// PublishLeave allows to send leave message into channel.
@@ -50,7 +50,7 @@ type Engine interface {
 	// Presence returns actual presence information for channel.
 	Presence(ch string) (map[string]proto.ClientInfo, error)
 
-	ReadMessage(ch, msgid, uid string) (bool, error)
+	ReadMessage(ch, appkey, msgid, uid string) (bool, error)
 
 	// History returns a slice of history messages for channel.
 	// Integer limit sets the max amount of messages that must be returned. 0 means no limit - i.e.

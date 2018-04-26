@@ -68,6 +68,7 @@ func ClientCommandsFromJSON(msgBytes []byte) ([]ClientCommand, error) {
 // prove correctness of all those parameters.
 type ConnectClientCommand struct {
 	User      string `json:"user"`
+	Appkey    string `json:"appkey"`
 	Timestamp string `json:"timestamp"`
 	Info      string `json:"info"`
 	Token     string `json:"token"`
@@ -77,6 +78,7 @@ type ConnectClientCommand struct {
 // mechanism is enabled. It can only be sent by client after successful connect.
 type RefreshClientCommand struct {
 	User      string `json:"user"`
+	Appkey    string `json:"appkey"`
 	Timestamp string `json:"timestamp"`
 	Info      string `json:"info"`
 	Token     string `json:"token"`
@@ -132,6 +134,7 @@ type ReadClientCommand struct {
 // PublishAPICommand is used to publish messages into channel.
 type PublishAPICommand struct {
 	Channel string  `json:"channel"`
+	Appkey  string  `json:"appkey"` //推送的平台列表
 	Client  string  `json:"client"`
 	NClient string  `json:"nclient"` //不发送的客户端列表
 	Data    raw.Raw `json:"data"`
@@ -140,6 +143,7 @@ type PublishAPICommand struct {
 // BroadcastAPICommand is used to publish messages into multiple channels.
 type BroadcastAPICommand struct {
 	Channels []string `json:"channels"`
+	Appkey   string   `json:"appkey"` //推送的平台列表
 	Data     raw.Raw  `json:"data"`
 	Client   string   `json:"client"`
 	NClient  string   `json:"nclient"` //不发送的客户端列表

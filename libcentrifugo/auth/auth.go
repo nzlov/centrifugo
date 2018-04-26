@@ -18,9 +18,10 @@ const (
 
 // GenerateClientToken generates client token based on project secret key and provided
 // connection parameters such as user ID, timestamp and info JSON string.
-func GenerateClientToken(secret, user, timestamp, info string) string {
+func GenerateClientToken(secret, user, appkey, timestamp, info string) string {
 	token := hmac.New(sha256.New, []byte(secret))
 	token.Write([]byte(user))
+	token.Write([]byte(appkey))
 	token.Write([]byte(timestamp))
 	token.Write([]byte(info))
 	return hex.EncodeToString(token.Sum(nil))
@@ -28,11 +29,11 @@ func GenerateClientToken(secret, user, timestamp, info string) string {
 
 // CheckClientToken validates correctness of provided (by client connection) token
 // comparing it with generated one
-func CheckClientToken(secret, user, timestamp, info, providedToken string) bool {
+func CheckClientToken(secret, user, appkey, timestamp, info, providedToken string) bool {
 	if len(providedToken) != HMACLength {
 		return false
 	}
-	token := GenerateClientToken(secret, user, timestamp, info)
+	token := GenerateClientToken(secret, user, appkey, timestamp, info)
 	return hmac.Equal([]byte(token), []byte(providedToken))
 }
 

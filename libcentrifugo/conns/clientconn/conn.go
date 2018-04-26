@@ -47,6 +47,7 @@ type client struct {
 	sess           conns.Session
 	uid            string
 	user           string
+	appkey         string
 	timestamp      int64
 	authenticated  bool
 	defaultInfo    raw.Raw
@@ -203,6 +204,10 @@ func (c *client) UID() string {
 // After this we only read this value.
 func (c *client) User() string {
 	return c.user
+}
+
+func (c *client) Appkey() string {
+	return c.appkey
 }
 
 func (c *client) Channels() []string {
@@ -537,6 +542,7 @@ func (c *client) connectCmd(cmd *proto.ConnectClientCommand) (proto.Response, er
 	}
 
 	user := cmd.User
+	appkey := cmd.Appkey
 	info := cmd.Info
 
 	config := c.node.Config()
@@ -559,7 +565,7 @@ func (c *client) connectCmd(cmd *proto.ConnectClientCommand) (proto.Response, er
 	}
 
 	if !insecure {
-		isValid := auth.CheckClientToken(secret, string(user), timestamp, info, token)
+		isValid := auth.CheckClientToken(secret, string(user), c.node.Config().Appkeys[appkey], timestamp, info, token)
 		if !isValid {
 			logger.ERROR.Println("invalid token for user", user)
 			return nil, proto.ErrInvalidToken
@@ -580,6 +586,7 @@ func (c *client) connectCmd(cmd *proto.ConnectClientCommand) (proto.Response, er
 	}
 
 	c.user = user
+	c.appkey = appkey
 
 	body := proto.ConnectBody{}
 	body.Version = version
@@ -629,6 +636,7 @@ func (c *client) connectCmd(cmd *proto.ConnectClientCommand) (proto.Response, er
 func (c *client) refreshCmd(cmd *proto.RefreshClientCommand) (proto.Response, error) {
 
 	user := cmd.User
+	appkey := cmd.Appkey
 	info := cmd.Info
 	timestamp := cmd.Timestamp
 	token := cmd.Token
@@ -636,7 +644,7 @@ func (c *client) refreshCmd(cmd *proto.RefreshClientCommand) (proto.Response, er
 	config := c.node.Config()
 	secret := config.Secret
 
-	isValid := auth.CheckClientToken(secret, string(user), timestamp, info, token)
+	isValid := auth.CheckClientToken(secret, string(user), c.node.Config().Appkeys[appkey], timestamp, info, token)
 	if !isValid {
 		logger.ERROR.Println("invalid refresh token for user", user)
 		return nil, proto.ErrInvalidToken
@@ -956,7 +964,7 @@ func (c *client) publishCmd(cmd *proto.PublishClientCommand) (proto.Response, er
 		}
 	}
 
-	err = <-c.node.Publish(message, "", &chOpts)
+	err = <-c.node.Publish(message, "", "", &chOpts)
 	if err != nil {
 		resp := proto.NewClientPublishResponse(body)
 		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceRetry})
@@ -1006,7 +1014,7 @@ func (c *client) readMessage(cmd *proto.ReadClientCommand) (proto.Response, erro
 		MsgID:   cmd.MsgID,
 		Channel: cmd.Channel,
 	}
-	success, err := c.node.ReadMessage(cmd.Channel, cmd.MsgID, c.uid)
+	success, err := c.node.ReadMessage(cmd.Channel, c.appkey, cmd.MsgID, c.uid)
 	if err != nil {
 		resp := proto.NewClientReadResponse(body)
 		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceRetry})
