@@ -820,7 +820,7 @@ func (c *client) subscribeCmd(cmd *proto.SubscribeClientCommand) (proto.Response
 			// Client provided subscribe request with recover flag on. Try to recover missed messages
 			// automatically from history (we suppose here that history configured wisely) based on
 			// provided last message id value.
-			messages, _, err := c.node.History(channel, 0, -1)
+			messages, _, err := c.node.History(channel, c.appkey, 0, -1)
 			if err != nil {
 				logger.ERROR.Printf("can't recover messages for channel %s: %s", string(channel), err)
 				body.Messages = []proto.Message{}
@@ -834,7 +834,7 @@ func (c *client) subscribeCmd(cmd *proto.SubscribeClientCommand) (proto.Response
 		}
 		//	logger.ERROR.Println("No cmd.Recover")
 		// Client don't want to recover messages yet, we just return last message id to him here.
-		lastMessageID, err := c.node.LastMessageID(channel)
+		lastMessageID, err := c.node.LastMessageID(channel, c.appkey)
 		if err != nil {
 			logger.ERROR.Println(err)
 		} else {
@@ -1042,7 +1042,7 @@ func (c *client) historyCmd(cmd *proto.HistoryClientCommand) (proto.Response, er
 		return resp, nil
 	}
 
-	history, total, err := c.node.History(channel, cmd.Skip, cmd.Limit)
+	history, total, err := c.node.History(channel,c.appkey, cmd.Skip, cmd.Limit)
 	if err != nil {
 		resp := proto.NewClientHistoryResponse(body)
 		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceRetry})

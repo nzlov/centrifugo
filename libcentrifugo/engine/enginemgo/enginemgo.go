@@ -206,7 +206,7 @@ func (e *MgoEngine) Permission(eid, permission string) bool {
 	}
 	return false
 }
-func (e *MgoEngine) mgosave(session *mgo.Session, message *proto.Message) error {
+func (e *MgoEngine) mgosave(session *mgo.Session, appkey string, message *proto.Message) error {
 	ch := message.Channel
 
 	chs := strings.Split(ch, ":")
@@ -220,8 +220,7 @@ func (e *MgoEngine) mgosave(session *mgo.Session, message *proto.Message) error 
 	if err != nil {
 		logger.ERROR.Println("mgosave databakup has error :", err)
 	}
-
-	err = session.DB(e.config.DB).C(tb).Insert(bson.M{
+	b := bson.M{
 		"uid":       message.UID,
 		"channel":   message.Channel,
 		"client":    message.Client,
@@ -231,7 +230,11 @@ func (e *MgoEngine) mgosave(session *mgo.Session, message *proto.Message) error 
 		"timestamp": message.Timestamp,
 		"addtime":   time.Now(),
 		"databakup": databakup,
-	})
+	}
+	if len(appkey) > 0 {
+		b["appkey"] = strings.Split(appkey, ",")
+	}
+	err = session.DB(e.config.DB).C(tb).Insert(b)
 	if err != nil {
 		logger.ERROR.Println("Engine Mgo:Publish Message Insert Has Error:", err)
 		return err
@@ -250,7 +253,7 @@ func (e *MgoEngine) mgoSave() {
 		message := m.message
 		errChan := m.errChan
 
-		if err := e.mgosave(session, message); err != nil {
+		if err := e.mgosave(session, m.appkey, message); err != nil {
 			errChan <- err
 			continue
 		}
@@ -271,10 +274,10 @@ func (e *MgoEngine) mgoSave() {
 				ch := strings.Split(message.Channel, ":")
 				if len(ch) == 2 {
 					switch ch[0] {
-					case "users":
+					case "members":
 						//发给店铺
 						newMessage := proto.NewMessage(chat.To, []byte(message.Data), message.Client, message.Info)
-						if err := e.mgosave(session, newMessage); err != nil {
+						if err := e.mgosave(session, m.appkey, newMessage); err != nil {
 							continue
 						}
 						err = e.node.ClientMsg(newMessage, "", "")
@@ -288,7 +291,7 @@ func (e *MgoEngine) mgoSave() {
 						chat.Name = shopinfo.ShopName
 						data, _ := json.Marshal(&chat)
 						newMessage := proto.NewMessage(chat.To, data, message.Client, message.Info)
-						if err := e.mgosave(session, newMessage); err != nil {
+						if err := e.mgosave(session, m.appkey, newMessage); err != nil {
 							continue
 						}
 						err = e.node.ClientMsg(newMessage, "", "")
@@ -438,7 +441,7 @@ func (e *MgoEngine) ReadMessage(ch, appkey, msgid, uid string) (bool, error) {
 }
 
 // History extracts history from history hub.
-func (e *MgoEngine) History(ch string, skip, limit int) ([]proto.Message, int, error) {
+func (e *MgoEngine) History(ch, appkey string, skip, limit int) ([]proto.Message, int, error) {
 	logger.DEBUG.Println("Engine Mgo:History:", ch, skip, limit)
 	if ch == "" {
 		logger.ERROR.Println("Engine Mgo:History:", ch, skip, limit)
@@ -452,7 +455,20 @@ func (e *MgoEngine) History(ch string, skip, limit int) ([]proto.Message, int, e
 	if len(chs) >= 2 {
 		tb = chs[0]
 	}
-	query := bson.M{"channel": ch, "timestamp": bson.M{"$gte": time.Now().Add(-time.Hour * 168).UnixNano()}}
+	query := bson.M{
+		"channel": ch,
+		"$or": []bson.M{
+			{
+				"appkey": bson.M{"$exists": false},
+			}, {
+				"appkey": appkey,
+			},
+		},
+		"timestamp": bson.M{
+			"$gte": time.Now().Add(-time.Hour * 168).UnixNano(),
+		},
+	}
+
 	logger.DEBUG.Printf("Query:%+v\n", query)
 	total, err := session.DB(e.config.DB).C(tb).Find(query).Count()
 	if err != nil {

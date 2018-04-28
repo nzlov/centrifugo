@@ -27,13 +27,20 @@
       "presence": true,
       "recover":true
     },{
-      "name": "printers",
+      "name": "devs",
       "watch": true,
       "presence": true,
       "recover":true
     },{
       "name": "employees",
       "watch": true,
+      "presence": true,
+      "recover":true
+    } ,{
+      "name": "members",
+      "watch": true,
+      "join_leave": true,
+      "publish": true,
       "presence": true,
       "recover":true
     } ,{

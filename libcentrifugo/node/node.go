@@ -770,7 +770,7 @@ func (n *Node) ReadMessage(ch, appkey, msgid, uid string) (bool, error) {
 }
 
 // History returns a slice of last messages published into project channel.
-func (n *Node) History(ch string, skip, limit int) ([]proto.Message, int, error) {
+func (n *Node) History(ch, appkey string, skip, limit int) ([]proto.Message, int, error) {
 
 	if string(ch) == "" {
 		return []proto.Message{}, 0, proto.ErrInvalidMessage
@@ -787,7 +787,7 @@ func (n *Node) History(ch string, skip, limit int) ([]proto.Message, int, error)
 
 	metricsRegistry.Counters.Inc("node_num_history")
 
-	history, total, err := n.engine.History(ch, skip, limit)
+	history, total, err := n.engine.History(ch, appkey, skip, limit)
 	if err != nil {
 		logger.ERROR.Println(err)
 		return []proto.Message{}, 0, proto.ErrInternalServerError
@@ -796,9 +796,9 @@ func (n *Node) History(ch string, skip, limit int) ([]proto.Message, int, error)
 }
 
 // LastMessageID return last message id for channel.
-func (n *Node) LastMessageID(ch string) (string, error) {
+func (n *Node) LastMessageID(ch, appkey string) (string, error) {
 	metricsRegistry.Counters.Inc("node_num_last_message_id")
-	history, _, err := n.engine.History(ch, -1, 1)
+	history, _, err := n.engine.History(ch, appkey, -1, 1)
 	if err != nil {
 		return "", err
 	}
