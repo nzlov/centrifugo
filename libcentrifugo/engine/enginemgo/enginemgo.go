@@ -232,14 +232,34 @@ func (e *MgoEngine) mgosave(session *mgo.Session, appkey, users, nusers string, 
 		"addtime":   time.Now(),
 		"databakup": databakup,
 	}
-	if len(appkey) > 0 {
-		b["appkey"] = strings.Split(appkey, ",")
+
+	oappkeys := strings.Split(appkey, ",")
+	appkeys := []string{}
+	for _, v := range oappkeys {
+		if v != "" {
+			appkeys = append(appkeys, v)
+		}
 	}
-	userss := strings.Split(users, ",")
+	if len(appkeys) > 0 {
+		b["appkey"] = appkeys
+	}
+	ouserss := strings.Split(users, ",")
+	userss := []string{}
+	for _, v := range ouserss {
+		if v != "" {
+			userss = append(userss, v)
+		}
+	}
 	if len(userss) > 0 {
 		b["users"] = userss
 	}
-	nuserss := strings.Split(nusers, ",")
+	onuserss := strings.Split(nusers, ",")
+	nuserss := []string{}
+	for _, v := range onuserss {
+		if v != "" {
+			nuserss = append(nuserss, v)
+		}
+	}
 	if len(nuserss) > 0 {
 		b["nusers"] = nuserss
 	}
@@ -508,7 +528,8 @@ func (e *MgoEngine) History(ch, appkey, client string, skip, limit int) ([]proto
 		},
 	}
 
-	logger.DEBUG.Printf("Query:%+v\n", query)
+	jsondata, _ := json.MarshalIndent(query, "", "  ")
+	logger.DEBUG.Printf("Query:%+v\n", string(jsondata))
 	total, err := session.DB(e.config.DB).C(tb).Find(query).Count()
 	if err != nil {
 		logger.ERROR.Println("Engine Mgo:History:Count:has Error:", err)
