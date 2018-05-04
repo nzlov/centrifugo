@@ -73,7 +73,8 @@ func Configure(setter config.Setter) error {
 type message struct {
 	message *proto.Message
 	appkey  string
-	nuids   string
+	users   string
+	nusers  string
 	errChan chan error
 }
 type MgoEngine struct {
@@ -206,7 +207,7 @@ func (e *MgoEngine) Permission(eid, permission string) bool {
 	}
 	return false
 }
-func (e *MgoEngine) mgosave(session *mgo.Session, appkey, nid string, message *proto.Message) error {
+func (e *MgoEngine) mgosave(session *mgo.Session, appkey, users, nusers string, message *proto.Message) error {
 	ch := message.Channel
 
 	chs := strings.Split(ch, ":")
@@ -234,13 +235,13 @@ func (e *MgoEngine) mgosave(session *mgo.Session, appkey, nid string, message *p
 	if len(appkey) > 0 {
 		b["appkey"] = strings.Split(appkey, ",")
 	}
-	clients := strings.Split(message.Client, ",")
-	if len(clients) > 0 {
-		b["clients"] = clients
+	userss := strings.Split(users, ",")
+	if len(userss) > 0 {
+		b["users"] = userss
 	}
-	nids := strings.Split(nid, ",")
-	if len(clients) > 0 {
-		b["nclients"] = nids
+	nuserss := strings.Split(nusers, ",")
+	if len(nuserss) > 0 {
+		b["nusers"] = nuserss
 	}
 	err = session.DB(e.config.DB).C(tb).Insert(b)
 	if err != nil {
@@ -261,11 +262,11 @@ func (e *MgoEngine) mgoSave() {
 		message := m.message
 		errChan := m.errChan
 
-		if err := e.mgosave(session, m.appkey, message); err != nil {
+		if err := e.mgosave(session, m.appkey, m.users, m.nusers, message); err != nil {
 			errChan <- err
 			continue
 		}
-		errChan <- e.node.ClientMsg(message, m.appkey, m.nuids)
+		errChan <- e.node.ClientMsg(message, m.appkey, m.users, m.nusers)
 
 		gjsons := gjson.ParseBytes([]byte(message.Data))
 		t := gjsons.Get("type")
@@ -285,10 +286,10 @@ func (e *MgoEngine) mgoSave() {
 					case "users":
 						//发给店铺
 						newMessage := proto.NewMessage(chat.To, []byte(message.Data), message.Client, message.Info)
-						if err := e.mgosave(session, "", newMessage); err != nil {
+						if err := e.mgosave(session, "", "", "", newMessage); err != nil {
 							continue
 						}
-						err = e.node.ClientMsg(newMessage, "", "")
+						err = e.node.ClientMsg(newMessage, "", "", "")
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
 						err = models.CentrifugoOfflineJPush(session, "a_merchant", strings.Split(chat.To, ":")[1], newMessage.UID, chat.To, chat)
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", err)
@@ -299,10 +300,10 @@ func (e *MgoEngine) mgoSave() {
 						chat.Name = shopinfo.ShopName
 						data, _ := json.Marshal(&chat)
 						newMessage := proto.NewMessage(chat.To, data, message.Client, message.Info)
-						if err := e.mgosave(session, "android_consume,ios_consume,weixin_consume", newMessage); err != nil {
+						if err := e.mgosave(session, "", "", "", newMessage); err != nil {
 							continue
 						}
-						err = e.node.ClientMsg(newMessage, "android_consume,ios_consume,weixin_consume", "")
+						err = e.node.ClientMsg(newMessage, "", "", "")
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
 						err = models.CentrifugoOfflineJPush(session, "a_consume", "", newMessage.UID, chat.To, chat)
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", err)
@@ -315,21 +316,22 @@ func (e *MgoEngine) mgoSave() {
 
 // PublishMessage adds message into history hub and calls node ClientMsg method to handle message.
 // We don't have any PUB/SUB here as Memory Engine is single node only.
-func (e *MgoEngine) PublishMessage(message *proto.Message, appkey, nuids string, opts *channel.Options) <-chan error {
+func (e *MgoEngine) PublishMessage(message *proto.Message, appkey, users, nusers string, opts *channel.Options) <-chan error {
 	logger.DEBUG.Println("Engine Mgo:PublishMessage:", message)
 	eChan := make(chan error)
 
-	e.publishMessage(message, appkey, nuids, eChan)
+	e.publishMessage(message, appkey, users, nusers, eChan)
 	logger.DEBUG.Println("Engine Mgo:PublishMessage OK.")
 	return eChan
 }
 
-func (e *MgoEngine) publishMessage(m *proto.Message, appkey, nuids string, eChan chan error) {
+func (e *MgoEngine) publishMessage(m *proto.Message, appkey, users, nusers string, eChan chan error) {
 	e.mgoMessageChan <- &message{
 		message: m,
 		errChan: eChan,
 		appkey:  appkey,
-		nuids:   nuids,
+		users:   users,
+		nusers:  nusers,
 	}
 }
 
@@ -467,38 +469,38 @@ func (e *MgoEngine) History(ch, appkey, client string, skip, limit int) ([]proto
 		"channel": ch,
 		"$and": []bson.M{
 			{
-				"$or":[]bson.M{
+				"$or": []bson.M{
 					{
-						"appkey":   bson.M{"$exists": false},
-					},{
-						"appkey":appkey,
-					}
+						"appkey": bson.M{"$exists": false},
+					}, {
+						"appkey": appkey,
+					},
 				},
 			},
 			{
-				"$or":[]bson.M{
+				"$or": []bson.M{
 					{
-						"clients":   bson.M{"$exists": false},
-					},{
-						"clients":client,
+						"users": bson.M{"$exists": false},
+					}, {
+						"users": client,
 						"$or": []bson.M{
 							{
-								"nclients":   bson.M{"$exists": false},
+								"nusers": bson.M{"$exists": false},
 							},
 							{
-								"nclients":   bson.M{"$ne": client},
+								"nusers": bson.M{"$ne": client},
 							},
-						}
-					}
+						},
+					},
 				},
 			},
 		},
-		"$or":[]bson.M{
+		"$or": []bson.M{
 			{
-				"nclients":   bson.M{"$exists": false},
+				"nusers": bson.M{"$exists": false},
 			},
 			{
-				"nclients":   bson.M{"$ne": client},
+				"nusers": bson.M{"$ne": client},
 			},
 		},
 		"timestamp": bson.M{

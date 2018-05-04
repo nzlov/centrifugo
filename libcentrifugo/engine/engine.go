@@ -25,7 +25,7 @@ type Engine interface {
 	// The returned value is channel in which we will send error as soon as engine finishes
 	// publish operation. Also the task of this method is to maintain history for channels
 	// if enabled.
-	PublishMessage(*proto.Message, string, string, *channel.Options) <-chan error
+	PublishMessage(*proto.Message, string, string, string, *channel.Options) <-chan error
 	// PublishJoin allows to send join message into channel.
 	PublishJoin(*proto.JoinMessage, *channel.Options) <-chan error
 	// PublishLeave allows to send leave message into channel.

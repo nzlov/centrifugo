@@ -391,7 +391,7 @@ func (n *Node) AdminMsg(msg *proto.AdminMessage) error {
 // ClientMsg handles messages published by web application or client into channel.
 // The goal of this method to deliver this message to all clients on this node subscribed
 // on channel.
-func (n *Node) ClientMsg(msg *proto.Message, appkey, nids string) error {
+func (n *Node) ClientMsg(msg *proto.Message, appkey, users, nusers string) error {
 	ch := msg.Channel
 	metricsRegistry.Counters.Inc("node_num_client_msg_received")
 	numSubscribers := n.clients.NumSubscribers(ch)
@@ -404,7 +404,8 @@ func (n *Node) ClientMsg(msg *proto.Message, appkey, nids string) error {
 	if err != nil {
 		return err
 	}
-	return n.clients.Broadcast(ch, appkey, byteMessage, msg.Client, nids)
+	nusers += "," + msg.Client
+	return n.clients.Broadcast(ch, appkey, byteMessage, users, nusers)
 }
 
 // JoinMsg handles JoinMessage.
@@ -451,7 +452,7 @@ func (n *Node) Forbidden(r raw.Raw) bool {
 
 // Publish sends a message to all clients subscribed on channel. All running nodes
 // will receive it and will send it to all clients on node subscribed on channel.
-func (n *Node) Publish(msg *proto.Message, appkey, nuids string, opts *channel.Options) <-chan error {
+func (n *Node) Publish(msg *proto.Message, appkey, users, nusers string, opts *channel.Options) <-chan error {
 	if opts == nil {
 		chOpts, err := n.ChannelOpts(msg.Channel)
 		if err != nil {
@@ -460,7 +461,7 @@ func (n *Node) Publish(msg *proto.Message, appkey, nuids string, opts *channel.O
 		opts = &chOpts
 	}
 	metricsRegistry.Counters.Inc("node_num_client_msg_published")
-	return n.engine.PublishMessage(msg, appkey, nuids, opts)
+	return n.engine.PublishMessage(msg, appkey, users, nusers, opts)
 }
 
 // PublishJoin allows to publish join message into channel when someone subscribes on it

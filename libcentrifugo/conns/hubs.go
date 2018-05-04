@@ -13,7 +13,7 @@ type ClientHub interface {
 	Remove(c ClientConn) error
 	AddSub(ch string, c ClientConn) (bool, error)
 	RemoveSub(ch string, c ClientConn) (bool, error)
-	Broadcast(ch, appkey string, message []byte, uids, nuids string) error
+	Broadcast(ch, appkey string, message []byte, users, nusers string) error
 	NumSubscribers(ch string) int
 	NumClients() int
 	NumUniqueClients() int
@@ -199,12 +199,12 @@ func (h *clientHub) RemoveSub(ch string, c ClientConn) (bool, error) {
 
 // Broadcast sends message to all clients subscribed on channel.
 // appkey 需要推送平台列表
-// uids 需要推送的列表
-// nuids 不需要推送的列表 (优先级高于uids)
-func (h *clientHub) Broadcast(ch, appkey string, message []byte, uids, nuids string) error {
+// uids 需要推送的列表 MACADDR
+// nuids 不需要推送的列表 (优先级高于uids) MACADDR
+func (h *clientHub) Broadcast(ch, appkey string, message []byte, users, nusers string) error {
 	h.RLock()
 	defer h.RUnlock()
-	logger.DEBUG.Println("Broadcast:", ch, appkey, uids, nuids, string(message))
+	logger.DEBUG.Println("Broadcast:", ch, appkey, users, nusers, string(message))
 	// get connections currently subscribed on channel
 	channelSubscriptions, ok := h.subs[ch]
 	if !ok {
@@ -214,15 +214,21 @@ func (h *clientHub) Broadcast(ch, appkey string, message []byte, uids, nuids str
 	// iterate over them and send message individually
 	msg := NewQueuedMessage(message, true)
 
-	uidss := strings.Split(uids, ",")
-	uidmap := map[string]struct{}{}
-	for _, uid := range uidss {
-		uidmap[uid] = struct{}{}
+	userss := strings.Split(users, ",")
+	usermap := map[string]struct{}{}
+	for _, user := range userss {
+		if user == "" {
+			continue
+		}
+		usermap[user] = struct{}{}
 	}
-	nuidss := strings.Split(uids, ",")
-	nuidmap := map[string]struct{}{}
-	for _, uid := range nuidss {
-		nuidmap[uid] = struct{}{}
+	nuserss := strings.Split(nusers, ",")
+	nusermap := map[string]struct{}{}
+	for _, nuser := range nuserss {
+		if nuser == "" {
+			continue
+		}
+		nusermap[nuser] = struct{}{}
 	}
 	appkeys := strings.Split(appkey, ",")
 	appkeymap := map[string]struct{}{}
@@ -231,22 +237,23 @@ func (h *clientHub) Broadcast(ch, appkey string, message []byte, uids, nuids str
 	}
 
 	for uid := range channelSubscriptions {
-		if uids != "" {
-			if _, ok := uidmap[uid]; !ok {
-				continue
-			}
-		}
-		if nuids != "" {
-			if _, ok := nuidmap[uid]; ok {
-				continue
-			}
-		}
 		c, ok := h.conns[uid]
 		if !ok {
 			continue
 		}
 		if appkey != "" {
 			if _, ok := appkeymap[c.Appkey()]; !ok {
+				continue
+			}
+		}
+		user := c.User()
+		if users != "" {
+			if _, ok := usermap[user]; !ok {
+				continue
+			}
+		}
+		if nusers != "" {
+			if _, ok := nusermap[user]; ok {
 				continue
 			}
 		}
