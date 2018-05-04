@@ -397,7 +397,6 @@ func (c *client) handleCommands(cmds []proto.ClientCommand) error {
 
 // handleCmd dispatches clientCommand into correct command handler
 func (c *client) handleCmd(command proto.ClientCommand) (proto.Response, error) {
-	logger.DEBUG.Printf("%v[%v]HandleCmd:%v", c.User(), c.uid, command.Method)
 
 	c.Lock()
 	defer c.Unlock()
@@ -815,26 +814,22 @@ func (c *client) subscribeCmd(cmd *proto.SubscribeClientCommand) (proto.Response
 
 	if chOpts.Recover {
 		if cmd.Recover {
-			logger.ERROR.Println("cmd.Recover")
 
 			// Client provided subscribe request with recover flag on. Try to recover missed messages
 			// automatically from history (we suppose here that history configured wisely) based on
 			// provided last message id value.
-			messages, _, err := c.node.History(channel, c.appkey, 0, -1)
+			messages, _, err := c.node.History(channel, c.appkey, c.user, 0, -1)
 			if err != nil {
-				logger.ERROR.Printf("can't recover messages for channel %s: %s", string(channel), err)
 				body.Messages = []proto.Message{}
 			} else {
-				logger.DEBUG.Println("revocerMessage", cmd)
 				recoveredMessages, recovered := recoverMessages(cmd.Last, messages)
-				logger.ERROR.Printf("user[%v] channel[%v] recoveredMessages:lastid[%v]:%+v\n", c.user, channel, cmd.Last, len(recoveredMessages))
 				body.Messages = recoveredMessages
 				body.Recovered = recovered
 			}
 		}
 		//	logger.ERROR.Println("No cmd.Recover")
 		// Client don't want to recover messages yet, we just return last message id to him here.
-		lastMessageID, err := c.node.LastMessageID(channel, c.appkey)
+		lastMessageID, err := c.node.LastMessageID(channel, c.appkey, c.user)
 		if err != nil {
 			logger.ERROR.Println(err)
 		} else {
@@ -1042,7 +1037,7 @@ func (c *client) historyCmd(cmd *proto.HistoryClientCommand) (proto.Response, er
 		return resp, nil
 	}
 
-	history, total, err := c.node.History(channel,c.appkey, cmd.Skip, cmd.Limit)
+	history, total, err := c.node.History(channel, c.appkey, c.user, cmd.Skip, cmd.Limit)
 	if err != nil {
 		resp := proto.NewClientHistoryResponse(body)
 		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceRetry})

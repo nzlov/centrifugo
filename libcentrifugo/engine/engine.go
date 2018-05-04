@@ -55,7 +55,7 @@ type Engine interface {
 	// History returns a slice of history messages for channel.
 	// Integer limit sets the max amount of messages that must be returned. 0 means no limit - i.e.
 	// return all history messages (actually limited by configured history_size).
-	History(ch, appkey string, skip, limit int) ([]proto.Message, int, error)
+	History(ch, appkey, client string, skip, limit int) ([]proto.Message, int, error)
 
 	Forbidden(raw.Raw) bool
 }

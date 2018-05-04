@@ -204,7 +204,7 @@ func (h *clientHub) RemoveSub(ch string, c ClientConn) (bool, error) {
 func (h *clientHub) Broadcast(ch, appkey string, message []byte, uids, nuids string) error {
 	h.RLock()
 	defer h.RUnlock()
-
+	logger.DEBUG.Println("Broadcast:", ch, appkey, uids, nuids, string(message))
 	// get connections currently subscribed on channel
 	channelSubscriptions, ok := h.subs[ch]
 	if !ok {

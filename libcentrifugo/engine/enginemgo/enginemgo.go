@@ -206,7 +206,7 @@ func (e *MgoEngine) Permission(eid, permission string) bool {
 	}
 	return false
 }
-func (e *MgoEngine) mgosave(session *mgo.Session, appkey string, message *proto.Message) error {
+func (e *MgoEngine) mgosave(session *mgo.Session, appkey, nid string, message *proto.Message) error {
 	ch := message.Channel
 
 	chs := strings.Split(ch, ":")
@@ -233,6 +233,14 @@ func (e *MgoEngine) mgosave(session *mgo.Session, appkey string, message *proto.
 	}
 	if len(appkey) > 0 {
 		b["appkey"] = strings.Split(appkey, ",")
+	}
+	clients := strings.Split(message.Client, ",")
+	if len(clients) > 0 {
+		b["clients"] = clients
+	}
+	nids := strings.Split(nid, ",")
+	if len(clients) > 0 {
+		b["nclients"] = nids
 	}
 	err = session.DB(e.config.DB).C(tb).Insert(b)
 	if err != nil {
@@ -274,10 +282,10 @@ func (e *MgoEngine) mgoSave() {
 				ch := strings.Split(message.Channel, ":")
 				if len(ch) == 2 {
 					switch ch[0] {
-					case "members":
+					case "users":
 						//发给店铺
 						newMessage := proto.NewMessage(chat.To, []byte(message.Data), message.Client, message.Info)
-						if err := e.mgosave(session, m.appkey, newMessage); err != nil {
+						if err := e.mgosave(session, "", newMessage); err != nil {
 							continue
 						}
 						err = e.node.ClientMsg(newMessage, "", "")
@@ -291,10 +299,10 @@ func (e *MgoEngine) mgoSave() {
 						chat.Name = shopinfo.ShopName
 						data, _ := json.Marshal(&chat)
 						newMessage := proto.NewMessage(chat.To, data, message.Client, message.Info)
-						if err := e.mgosave(session, m.appkey, newMessage); err != nil {
+						if err := e.mgosave(session, "android_consume,ios_consume,weixin_consume", newMessage); err != nil {
 							continue
 						}
-						err = e.node.ClientMsg(newMessage, "", "")
+						err = e.node.ClientMsg(newMessage, "android_consume,ios_consume,weixin_consume", "")
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
 						err = models.CentrifugoOfflineJPush(session, "a_consume", "", newMessage.UID, chat.To, chat)
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", err)
@@ -441,7 +449,7 @@ func (e *MgoEngine) ReadMessage(ch, appkey, msgid, uid string) (bool, error) {
 }
 
 // History extracts history from history hub.
-func (e *MgoEngine) History(ch, appkey string, skip, limit int) ([]proto.Message, int, error) {
+func (e *MgoEngine) History(ch, appkey, client string, skip, limit int) ([]proto.Message, int, error) {
 	logger.DEBUG.Println("Engine Mgo:History:", ch, skip, limit)
 	if ch == "" {
 		logger.ERROR.Println("Engine Mgo:History:", ch, skip, limit)
@@ -457,11 +465,40 @@ func (e *MgoEngine) History(ch, appkey string, skip, limit int) ([]proto.Message
 	}
 	query := bson.M{
 		"channel": ch,
-		"$or": []bson.M{
+		"$and": []bson.M{
 			{
-				"appkey": bson.M{"$exists": false},
-			}, {
-				"appkey": appkey,
+				"$or":[]bson.M{
+					{
+						"appkey":   bson.M{"$exists": false},
+					},{
+						"appkey":appkey,
+					}
+				},
+			},
+			{
+				"$or":[]bson.M{
+					{
+						"clients":   bson.M{"$exists": false},
+					},{
+						"clients":client,
+						"$or": []bson.M{
+							{
+								"nclients":   bson.M{"$exists": false},
+							},
+							{
+								"nclients":   bson.M{"$ne": client},
+							},
+						}
+					}
+				},
+			},
+		},
+		"$or":[]bson.M{
+			{
+				"nclients":   bson.M{"$exists": false},
+			},
+			{
+				"nclients":   bson.M{"$ne": client},
 			},
 		},
 		"timestamp": bson.M{
