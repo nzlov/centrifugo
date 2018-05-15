@@ -1009,7 +1009,7 @@ func (c *client) readMessage(cmd *proto.ReadClientCommand) (proto.Response, erro
 		MsgID:   cmd.MsgID,
 		Channel: cmd.Channel,
 	}
-	success, err := c.node.ReadMessage(cmd.Channel, c.appkey, cmd.MsgID, c.uid)
+	success, err := c.node.ReadMessage(cmd.Channel, cmd.MsgID, c.uid)
 	if err != nil {
 		resp := proto.NewClientReadResponse(body)
 		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceRetry})

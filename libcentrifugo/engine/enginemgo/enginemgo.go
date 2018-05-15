@@ -306,10 +306,10 @@ func (e *MgoEngine) mgoSave() {
 					case "users":
 						//发给店铺
 						newMessage := proto.NewMessage(chat.To, []byte(message.Data), message.Client, message.Info)
-						if err := e.mgosave(session, "", "", "", newMessage); err != nil {
+						if err := e.mgosave(session, models.CENTRIFUGOAPPKEY_MERCHANT, "", "", newMessage); err != nil {
 							continue
 						}
-						err = e.node.ClientMsg(newMessage, "", "", "")
+						err = e.node.ClientMsg(newMessage, models.CENTRIFUGOAPPKEY_MERCHANT, "", "")
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
 						err = models.CentrifugoOfflineJPush(session, "a_merchant", strings.Split(chat.To, ":")[1], newMessage.UID, chat.To, chat)
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", err)
@@ -320,10 +320,10 @@ func (e *MgoEngine) mgoSave() {
 						chat.Name = shopinfo.ShopName
 						data, _ := json.Marshal(&chat)
 						newMessage := proto.NewMessage(chat.To, data, message.Client, message.Info)
-						if err := e.mgosave(session, "", "", "", newMessage); err != nil {
+						if err := e.mgosave(session, models.CENTRIFUGOAPPKEY_CONSUME, "", "", newMessage); err != nil {
 							continue
 						}
-						err = e.node.ClientMsg(newMessage, "", "", "")
+						err = e.node.ClientMsg(newMessage, models.CENTRIFUGOAPPKEY_CONSUME, "", "")
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
 						err = models.CentrifugoOfflineJPush(session, "a_consume", "", newMessage.UID, chat.To, chat)
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:CentrifugoOfflineJPush:", err)
@@ -430,7 +430,7 @@ func (e *MgoEngine) Presence(ch string) (map[string]proto.ClientInfo, error) {
 	return e.presenceHub.get(ch)
 }
 
-func (e *MgoEngine) ReadMessage(ch, appkey, msgid, uid string) (bool, error) {
+func (e *MgoEngine) ReadMessage(ch, msgid, uid string) (bool, error) {
 	if ch == "" || msgid == "" {
 		logger.ERROR.Println("Engine Mgo:ReadMessage:", ch, msgid)
 		return false, proto.ErrInvalidMessage
@@ -466,7 +466,7 @@ func (e *MgoEngine) ReadMessage(ch, appkey, msgid, uid string) (bool, error) {
 		logger.ERROR.Println("Engine Mgo:ReadMessage:Marshal:", resp)
 		return true, nil
 	}
-	e.node.ClientHub().Broadcast(ch, appkey, byteMessage, "", uid)
+	e.node.ClientHub().Broadcast(ch, "", byteMessage, "", uid)
 	return true, nil
 }
 
@@ -528,8 +528,8 @@ func (e *MgoEngine) History(ch, appkey, client string, skip, limit int) ([]proto
 		},
 	}
 
-	jsondata, _ := json.MarshalIndent(query, "", "  ")
-	logger.DEBUG.Printf("Query:%+v\n", string(jsondata))
+	//jsondata, _ := json.MarshalIndent(query, "", "  ")
+	//logger.DEBUG.Printf("Query:%+v\n", string(jsondata))
 	total, err := session.DB(e.config.DB).C(tb).Find(query).Count()
 	if err != nil {
 		logger.ERROR.Println("Engine Mgo:History:Count:has Error:", err)

@@ -50,7 +50,7 @@ type Engine interface {
 	// Presence returns actual presence information for channel.
 	Presence(ch string) (map[string]proto.ClientInfo, error)
 
-	ReadMessage(ch, appkey, msgid, uid string) (bool, error)
+	ReadMessage(ch, msgid, uid string) (bool, error)
 
 	// History returns a slice of history messages for channel.
 	// Integer limit sets the max amount of messages that must be returned. 0 means no limit - i.e.
