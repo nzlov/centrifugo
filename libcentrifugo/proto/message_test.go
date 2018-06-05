@@ -25,6 +25,12 @@ func TestMessage(t *testing.T) {
 	assert.Equal(t, "test", unmarshalledMsg.Channel)
 }
 
+func TestMessageWithUID(t *testing.T) {
+	uid := "12"
+	msg := NewMessageWithUID("test", []byte("{}"), "", nil, uid)
+	assert.Equal(t, uid, msg.UID)
+}
+
 func TestMarshalUnmarshal(t *testing.T) {
 	data := `{"key": "привет"}`
 	msg := NewMessage("test", []byte(data), "", nil)

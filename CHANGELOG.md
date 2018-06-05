@@ -1,3 +1,47 @@
+v1.7.9
+======
+
+No backwards incompatible changes here.
+
+### Fixes
+
+* fix malformed JSON when using empty `info` in connection refresh request - see [#214](https://github.com/centrifugal/centrifugo/issues/214).
+
+### Features
+
+* support ACME http_01 challenge using new `ssl_autocert_http` boolean option. Centrifugo will serve http_01 ACME challenge on port 80. See [#210](https://github.com/centrifugal/centrifugo/issues/210) for more details. 
+
+### Internal
+
+* using Go 1.10.1 for builds
+
+v1.7.8
+======
+
+No backwards incompatible changes here.
+
+### Fixes
+
+* the fix of goroutine leak in 1.7.7 was incomplete - looks like in this release the problem described in [#207](https://github.com/centrifugal/centrifugo/issues/207) gone away.
+
+v1.7.7
+======
+
+No backwards incompatible changes here.
+
+### Fixes
+
+* fix goroutine leak due to deadlock, see [#207](https://github.com/centrifugal/centrifugo/issues/207)
+
+### Features
+
+* possibility to set message `uid` via API request - see [#205](https://github.com/centrifugal/centrifugo/pull/205)
+
+### Internal
+
+* do not send `unsubscribe` messages to client on shutdown - it will unsubscribe automatically on disconnect on client side
+* using Go 1.10 for builds
+
 v1.7.6
 ======
 

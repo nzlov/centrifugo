@@ -138,6 +138,7 @@ type PublishAPICommand struct {
 	Client  string  `json:"client"`
 	NClient string  `json:"nclient"` //不发送的客户端列表
 	Data    raw.Raw `json:"data"`
+	UID     string  `json:"uid"`
 }
 
 // BroadcastAPICommand is used to publish messages into multiple channels.
