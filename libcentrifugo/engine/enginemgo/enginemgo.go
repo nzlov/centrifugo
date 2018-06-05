@@ -132,6 +132,7 @@ func New(n *node.Node, conf *Config) (*MgoEngine, error) {
 		config:      conf,
 		expireCache: cache.New(time.Minute, 2*time.Minute),
 	}
+	models.InitRedis("shanshou.redis.host:6379", 10)
 	switch conf.Mode {
 	case "prod":
 		models.SysModelDev = false
@@ -273,18 +274,26 @@ func (e *MgoEngine) mgosave(session *mgo.Session, appkey, users, nusers string, 
 func (e *MgoEngine) mgoSave() {
 	session := e.sessionDupl()
 	defer session.Close()
+	defer func() {
+		if err := recover(); err != nil {
+			logger.ERROR.Println(err)
+			go e.mgoSave()
+		}
+	}()
 	for m := range e.mgoMessageChan {
-		defer func() {
-			if err := recover(); err != nil {
+		if err := session.Ping(); err != nil {
+			session = e.sessionDupl()
+			if err = session.Ping(); err != nil {
+				go e.mgoSave()
 				logger.ERROR.Println(err)
 			}
-		}()
+		}
 		message := m.message
 		errChan := m.errChan
 
 		if err := e.mgosave(session, m.appkey, m.users, m.nusers, message); err != nil {
 			errChan <- err
-			continue
+			logger.ERROR.Println(err)
 		}
 		errChan <- e.node.ClientMsg(message, m.appkey, m.users, m.nusers)
 
@@ -298,7 +307,6 @@ func (e *MgoEngine) mgoSave() {
 				err := json.Unmarshal([]byte(message.Data), &chat)
 				if err != nil {
 					logger.ERROR.Println("PublishMessage chat type Message:", string(message.Data), err)
-					continue
 				}
 				ch := strings.Split(message.Channel, ":")
 				if len(ch) == 2 {
@@ -307,11 +315,11 @@ func (e *MgoEngine) mgoSave() {
 						//发给店铺
 						newMessage := proto.NewMessage(chat.To, []byte(message.Data), message.Client, message.Info)
 						if err := e.mgosave(session, models.CENTRIFUGOAPPKEY_MERCHANT, "", "", newMessage); err != nil {
-							continue
+							logger.ERROR.Println("PublishMessage chat type Message:", string(message.Data), err)
 						}
 						err = e.node.ClientMsg(newMessage, models.CENTRIFUGOAPPKEY_MERCHANT, "", "")
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
-						err = models.CentrifugoOfflineJPush(session, "a_merchant", strings.Split(chat.To, ":")[1], newMessage.UID, chat.To, chat)
+						err = models.CentrifugoOfflineJPush(session, "a_merchan", strings.Split(chat.To, ":")[1], newMessage.UID, chat.To, chat)
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:", err)
 					case "shops":
 						//发给顾客端
@@ -321,7 +329,7 @@ func (e *MgoEngine) mgoSave() {
 						data, _ := json.Marshal(&chat)
 						newMessage := proto.NewMessage(chat.To, data, message.Client, message.Info)
 						if err := e.mgosave(session, models.CENTRIFUGOAPPKEY_CONSUME, "", "", newMessage); err != nil {
-							continue
+							logger.ERROR.Println("PublishMessage chat type Message:", string(message.Data), err)
 						}
 						err = e.node.ClientMsg(newMessage, models.CENTRIFUGOAPPKEY_CONSUME, "", "")
 						logger.DEBUG.Println("Engine Mgo:PublishMessage:newMessage:publishMessage:", err)
