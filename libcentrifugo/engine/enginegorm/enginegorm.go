@@ -89,14 +89,14 @@ type DBData struct {
 	Channel   string            `json:"channel"`
 	Client    string            `json:"client"`
 	Data      string            `json:"data"`
-	Info      *proto.ClientInfo `json:"info"`
+	Info      *proto.ClientInfo `json:"info" gorm:"type:jsonb"`
 	Read      bool              `json:"read"`
 	Timestamp int64             `json:"timestamp"`
 	DataBakup DataBakup         `json:"-" gorm:"type:jsonb"`
 
-	Appkey pq.StringArray `json:"-"`
-	Users  pq.StringArray `json:"-"`
-	NUsers pq.StringArray `json:"-"`
+	Appkey pq.StringArray `json:"-" gorm:"type:varchar(125)[]"`
+	Users  pq.StringArray `json:"-" gorm:"type:varchar(125)[]"`
+	NUsers pq.StringArray `json:"-" gorm:"type:varchar(125)[]"`
 }
 
 func (d DBData) TableName() string {
@@ -182,13 +182,14 @@ func New(n *node.Node, conf *Config) (*Engine, error) {
 		config:      conf,
 		expireCache: cache.New(time.Minute, 2*time.Minute),
 	}
-	models.InitRedis(conf.Redis, 10)
 	switch conf.Mode {
 	case "prod":
 		models.SysModelDev = false
 	default:
 		models.SysModelDev = true
 	}
+	models.InitDB(conf.URL)
+	models.InitRedis(conf.Redis, 10)
 	return e, nil
 }
 
@@ -206,10 +207,11 @@ func (e *Engine) Run() error {
 		logger.ERROR.Println("[GORM] Engine opens has error:", err.Error())
 		return err
 	}
-	e.db.AutoMigrate(new(DBData))
 	if e.config.Mode != "prod" {
 		e.db.LogMode(true)
 	}
+
+	e.db.AutoMigrate(new(DBData))
 
 	e.expireCache.OnEvicted(func(k string, v interface{}) {
 		logger.DEBUG.Println("Mgo Read Expire Cache:Evicted:", k)
