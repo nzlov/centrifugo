@@ -5,7 +5,7 @@
   "log_level":"trace",
   "admin_password": "shengyun",
   "admin_secret": "109AWD4FWF45A484S5W8F",
-  "mgo_url":"mongodb://shanshou:shengyun123@shanshou.mongo.host:27017",
+  "gorm_url":"postgres://:@127.0.0.1/shanshou?sslmode=disable",
   "publish": false,
   "watch": true,
   "history_lifetime": 604800,

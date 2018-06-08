@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/google/gops/agent"
+	_ "github.com/nzlov/centrifugo/libcentrifugo/engine/enginegorm"
 	_ "github.com/nzlov/centrifugo/libcentrifugo/engine/enginemgo"
 
 	// Register embedded web interface.

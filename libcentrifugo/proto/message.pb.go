@@ -17,14 +17,22 @@
 */
 package proto
 
-import proto1 "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "github.com/gogo/protobuf/gogoproto"
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
+	fmt "fmt"
 
-import github_com_nzlov_centrifugo_libcentrifugo_raw "github.com/nzlov/centrifugo/libcentrifugo/raw"
+	proto1 "github.com/gogo/protobuf/proto"
 
-import io "io"
+	math "math"
+
+	_ "github.com/gogo/protobuf/gogoproto"
+
+	github_com_nzlov_centrifugo_libcentrifugo_raw "github.com/nzlov/centrifugo/libcentrifugo/raw"
+
+	io "io"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto1.Marshal
@@ -61,6 +69,19 @@ func (m *ClientInfo) GetClient() string {
 		return m.Client
 	}
 	return ""
+}
+func (j ClientInfo) Value() (driver.Value, error) {
+	return json.Marshal(&j)
+}
+
+// Scan scan value into Jsonb
+func (j *ClientInfo) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New(fmt.Sprint("Failed to unmarshal JSONB value:", value))
+	}
+
+	return json.Unmarshal(bytes, j)
 }
 
 type Message struct {
