@@ -214,8 +214,7 @@ func (e *Engine) Run() error {
 	if e.config.Mode != "prod" {
 		e.db.LogMode(true)
 	}
-
-	e.db.AutoMigrate(new(DBData))
+	e.db.AutoMigrate(new(Persence))
 
 	e.expireCache.OnEvicted(func(k string, v interface{}) {
 		logger.DEBUG.Println("Mgo Read Expire Cache:Evicted:", k)
@@ -311,6 +310,8 @@ func (e *Engine) save(db *gorm.DB, appkey, users, nusers string, message *proto.
 	if len(nuserss) > 0 {
 		data.NUsers = pq.StringArray(nuserss)
 	}
+
+	db.AutoMigrate(data)
 	err := db.Create(data).Error
 	if err != nil {
 		logger.ERROR.Println("[GORM] Engine save has error:", err.Error())
@@ -569,6 +570,7 @@ func (e *Engine) History(ch, appkey, client string, skip, limit int) ([]proto.Me
 	data := DBData{
 		Channel: ch,
 	}
+	db.AutoMigrate(data)
 
 	t := db.Model(&data).Where(`
 		channel = ? 
@@ -576,20 +578,20 @@ func (e *Engine) History(ch, appkey, client string, skip, limit int) ([]proto.Me
 		timestamp >= ? 
 		and 
 		( 
-			array_length(appkey) = 0 or ? = any(appkey) 
+			LENGTH(appkey::varchar) = 0 or ? = any(appkey) 
 		) 
 		and 
 		( 
-			array_length(nusers) = 0 
+			LENGTH(n_users::varchar) = 0 
 			and
 			(
-				array_length(nusers) = 0 or ? = any(nusers)
+				LENGTH(n_users::varchar) = 0 or ? = any(n_users)
 			) 
 		) 
 		and
 		( 
-			array_length(nusers) = 0 or ? = any(nusers)
-		)`)
+			LENGTH(n_users::varchar) = 0 or ? = any(n_users)
+		)`, ch, time.Now().Add(-time.Hour*168).UnixNano(), appkey, client, client)
 
 	// query := bson.M{
 	// 	"channel": ch,
@@ -656,7 +658,7 @@ func (e *Engine) History(ch, appkey, client string, skip, limit int) ([]proto.Me
 
 	logger.DEBUG.Println("[GORM] Engine:History:", ch, sort, skip, limit)
 
-	err = t.Offset(sort).Limit(limit).Find(&msgs).Error
+	err = t.Table(data.TableName()).Offset(sort).Limit(limit).Find(&msgs).Error
 	if err != nil {
 		logger.ERROR.Println("[GORM] Engine:History:Find:has Error:", err.Error())
 		return []proto.Message{}, 0, proto.ErrInvalidMessage
