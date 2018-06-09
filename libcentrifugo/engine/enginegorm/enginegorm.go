@@ -115,6 +115,10 @@ type Persence struct {
 	Online    bool   `gorm:"online"`
 }
 
+func (Persence) TableName() string {
+	return "centrifugo_persence"
+}
+
 type DataBakup struct {
 	data raw.Raw
 }
