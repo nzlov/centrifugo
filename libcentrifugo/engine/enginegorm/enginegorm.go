@@ -88,11 +88,10 @@ type DBData struct {
 	UID       string            `json:"uid"`
 	Channel   string            `json:"channel"`
 	Client    string            `json:"client"`
-	Data      string            `json:"data"`
+	Data      raw.Raw           `json:"data"  gorm:"type:jsonb"`
 	Info      *proto.ClientInfo `json:"info" gorm:"type:jsonb"`
 	Read      bool              `json:"read"`
 	Timestamp int64             `json:"timestamp"`
-	DataBakup DataBakup         `json:"-" gorm:"type:jsonb"`
 
 	Appkey pq.StringArray `json:"-" gorm:"type:varchar(125)[]"`
 	Users  pq.StringArray `json:"-" gorm:"type:varchar(125)[]"`
@@ -109,6 +108,8 @@ func (d DBData) TableName() string {
 }
 
 type Persence struct {
+	ID uint `gorm:"primary_key"`
+
 	User      string `gorm:"user"`
 	Channel   string `gorm:"channel"`
 	ChannelID string `gorm:"channelid"`
@@ -124,12 +125,12 @@ type DataBakup struct {
 }
 
 func (j DataBakup) Value() (driver.Value, error) {
-	return j.data, nil
+	return []byte(j.data), nil
 }
 
 // Scan scan value into Jsonb
 func (j *DataBakup) Scan(value interface{}) error {
-	j.data, _ = value.([]byte)
+	j.data = []byte(value.(string))
 	return nil
 }
 
@@ -273,11 +274,10 @@ func (e *Engine) save(db *gorm.DB, appkey, users, nusers string, message *proto.
 		UID:       message.UID,
 		Channel:   message.Channel,
 		Client:    message.Client,
-		Data:      string(message.Data),
+		Data:      message.Data,
 		Info:      message.Info,
 		Read:      message.Read,
 		Timestamp: message.Timestamp,
-		DataBakup: DataBakup{[]byte(message.Data)},
 	}
 
 	oappkeys := strings.Split(appkey, ",")
@@ -469,16 +469,12 @@ func (e *Engine) AddPresence(ch string, uid string, info proto.ClientInfo, expir
 			User:    info.User,
 			Channel: chs[0],
 		}
-		err := db.Where(&presence).Find(&presence).Error
+		db.Where(&presence).Find(&presence)
+		presence.ChannelID = chs[1]
+		presence.Online = true
+		err := db.Save(&presence).Error
 		if err != nil {
-			logger.ERROR.Println("[GORM] Engine AddPresence find presence has error:", err.Error())
-		} else {
-			presence.ChannelID = chs[1]
-			presence.Online = true
-			err = db.Save(&presence).Error
-			if err != nil {
-				logger.ERROR.Println("[GORM] Engine AddPresence save presence has error:", err.Error())
-			}
+			logger.ERROR.Println("[GORM] Engine AddPresence save presence has error:", err.Error())
 		}
 	}
 	return e.presenceHub.add(ch, uid, info)
@@ -578,20 +574,24 @@ func (e *Engine) History(ch, appkey, client string, skip, limit int) ([]proto.Me
 		timestamp >= ? 
 		and 
 		( 
-			LENGTH(appkey::varchar) = 0 or ? = any(appkey) 
+			appkey is null or ? = any(appkey) 
 		) 
 		and 
 		( 
-			LENGTH(n_users::varchar) = 0 
-			and
+			users is null 
+			or
 			(
-				LENGTH(n_users::varchar) = 0 or ? = any(n_users)
+				? = any(users)
+				and
+				(
+					n_users is null or ? = any(n_users)
+				)
 			) 
 		) 
 		and
 		( 
-			LENGTH(n_users::varchar) = 0 or ? = any(n_users)
-		)`, ch, time.Now().Add(-time.Hour*168).UnixNano(), appkey, client, client)
+			n_users is null or ? = any(n_users)
+		)`, ch, time.Now().Add(-time.Hour*168).UnixNano(), appkey, client, client, client)
 
 	// query := bson.M{
 	// 	"channel": ch,
@@ -647,9 +647,9 @@ func (e *Engine) History(ch, appkey, client string, skip, limit int) ([]proto.Me
 	}
 	msgs := []proto.Message{}
 
-	sort := "addtime"
+	sort := "timestamp"
 	if skip < 0 {
-		sort = "addtime desc"
+		sort = "timestamp desc"
 		skip = -(skip) - 1
 	}
 	if limit < 0 {
@@ -658,7 +658,7 @@ func (e *Engine) History(ch, appkey, client string, skip, limit int) ([]proto.Me
 
 	logger.DEBUG.Println("[GORM] Engine:History:", ch, sort, skip, limit)
 
-	err = t.Table(data.TableName()).Offset(sort).Limit(limit).Find(&msgs).Error
+	err = t.Table(data.TableName()).Order(sort).Offset(sort).Limit(limit).Find(&msgs).Error
 	if err != nil {
 		logger.ERROR.Println("[GORM] Engine:History:Find:has Error:", err.Error())
 		return []proto.Message{}, 0, proto.ErrInvalidMessage

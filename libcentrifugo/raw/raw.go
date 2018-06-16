@@ -3,6 +3,7 @@ package raw
 
 import (
 	"bytes"
+	"database/sql/driver"
 	"errors"
 )
 
@@ -71,6 +72,16 @@ func (r Raw) Equal(other Raw) bool {
 // Compare exists to fit gogoprotobuf custom type interface.
 func (r Raw) Compare(other Raw) int {
 	return bytes.Compare(r[0:], other[0:])
+}
+
+func (r Raw) Value() (driver.Value, error) {
+	return []byte(r), nil
+}
+
+// Scan scan value into Jsonb
+func (r *Raw) Scan(value interface{}) error {
+	r.Unmarshal(value.([]byte))
+	return nil
 }
 
 type intn interface {
