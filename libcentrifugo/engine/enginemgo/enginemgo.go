@@ -282,11 +282,8 @@ func (e *MgoEngine) mgoSave() {
 	}()
 	for m := range e.mgoMessageChan {
 		if err := session.Ping(); err != nil {
-			session = e.sessionDupl()
-			if err = session.Ping(); err != nil {
-				go e.mgoSave()
-				logger.ERROR.Println(err)
-			}
+			logger.ERROR.Println(err)
+			panic(err)
 		}
 		message := m.message
 		errChan := m.errChan
