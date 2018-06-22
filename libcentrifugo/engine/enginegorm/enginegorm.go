@@ -352,7 +352,7 @@ func (e *Engine) Save() {
 				ch := strings.Split(message.Channel, ":")
 				if len(ch) == 2 {
 					switch ch[0] {
-					case "users":
+					case "users", "members":
 						//发给店铺
 						newMessage := proto.NewMessage(chat.To, []byte(message.Data), message.Client, message.Info)
 						if err := e.save(db, models.CENTRIFUGOAPPKEY_MERCHANT, "", "", newMessage); err != nil {
