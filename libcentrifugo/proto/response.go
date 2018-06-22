@@ -663,3 +663,19 @@ func NewAdminMessageResponse(body raw.Raw) *AdminMessageResponse {
 // slice of commands received by API in execution order - from first executed
 // to last one.
 type MultiAPIResponse []Response
+
+type MicroResponse struct {
+	ResponseError
+
+	UID    string  `json:"uid,omitempty"`
+	Method string  `json:"method"`
+	Error  *string `json:"error"`
+	Body   raw.Raw `json:"body"`
+}
+
+func NewMicroResponse(body raw.Raw) *MicroResponse {
+	return &MicroResponse{
+		Method: "micro",
+		Body:   body,
+	}
+}

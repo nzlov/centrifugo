@@ -204,3 +204,10 @@ type ConnectAdminCommand struct {
 type PingAdminCommand struct {
 	Data string `json:"data"`
 }
+
+// 请求后端微服务
+type MicroCommand struct {
+	UID  string  `json:"uid"`
+	Name string  `json:"name"`
+	Data raw.Raw `json:"data"`
+}
