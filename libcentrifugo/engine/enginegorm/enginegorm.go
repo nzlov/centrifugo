@@ -557,7 +557,7 @@ func (e *Engine) ReadMessage(ch, msgid, uid string) (bool, error) {
 }
 
 // History extracts history from history hub.
-func (e *Engine) History(ch, appkey, client string, skip, limit int) ([]proto.Message, int, error) {
+func (e *Engine) History(ch, appkey, client, last string, skip, limit int) ([]proto.Message, int, error) {
 	logger.DEBUG.Println("[GORM] Engine:History:", ch, skip, limit)
 	if ch == "" {
 		logger.ERROR.Println("[GORM] Engine:History:", ch, skip, limit)
@@ -569,6 +569,16 @@ func (e *Engine) History(ch, appkey, client string, skip, limit int) ([]proto.Me
 		Channel: ch,
 	}
 	db.AutoMigrate(data)
+
+	ts := time.Now().Add(-time.Hour * 168).UnixNano()
+	if last != "" {
+		lastData := DBData{
+			Channel: ch,
+			UID:     last,
+		}
+		db.Where(&lastData).First(&lastData)
+		ts = lastData.Timestamp + 1
+	}
 
 	t := db.Model(&data).Where(`
 		channel = ? 
@@ -593,53 +603,7 @@ func (e *Engine) History(ch, appkey, client string, skip, limit int) ([]proto.Me
 		and
 		( 
 			n_users is null or ? = any(n_users)
-		)`, ch, time.Now().Add(-time.Hour*168).UnixNano(), appkey, client, client, client)
-
-	// query := bson.M{
-	// 	"channel": ch,
-	// 	"$and": []bson.M{
-	// 		{
-	// 			"$or": []bson.M{
-	// 				{
-	// 					"appkey": bson.M{"$exists": false},
-	// 				}, {
-	// 					"appkey": appkey,
-	// 				},
-	// 			},
-	// 		},
-	// 		{
-	// 			"$or": []bson.M{
-	// 				{
-	// 					"users": bson.M{"$exists": false},
-	// 				}, {
-	// 					"users": client,
-	// 					"$or": []bson.M{
-	// 						{
-	// 							"nusers": bson.M{"$exists": false},
-	// 						},
-	// 						{
-	// 							"nusers": bson.M{"$ne": client},
-	// 						},
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// 	"$or": []bson.M{
-	// 		{
-	// 			"nusers": bson.M{"$exists": false},
-	// 		},
-	// 		{
-	// 			"nusers": bson.M{"$ne": client},
-	// 		},
-	// 	},
-	// 	"timestamp": bson.M{
-	// 		"$gte": time.Now().Add(-time.Hour * 168).UnixNano(),
-	// 	},
-	// }
-
-	//jsondata, _ := json.MarshalIndent(query, "", "  ")
-	//logger.DEBUG.Printf("Query:%+v\n", string(jsondata))
+		)`, ch, ts, appkey, client, client, client)
 
 	total := 0
 	err := t.Count(&total).Error

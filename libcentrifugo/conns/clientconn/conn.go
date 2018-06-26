@@ -686,34 +686,6 @@ func (c *client) refreshCmd(cmd *proto.RefreshClientCommand) (proto.Response, er
 	return proto.NewClientRefreshResponse(body), nil
 }
 
-func recoverMessages(last string, messages []proto.Message) ([]proto.Message, bool) {
-	if last == "" {
-		// Client wants to recover messages but it seems that there were no
-		// messages in history before, so client missed all messages which
-		// exist now.
-		return messages, false
-	}
-
-	position := -1
-	for index, msg := range messages {
-		if msg.UID == last {
-			position = index
-			break
-		}
-	}
-	if position > -1 {
-		// Last uid provided found in history. Set recovered flag which means that
-		// Centrifugo thinks missed messages fully recovered.
-		return messages[position+1:], true
-	}
-	// Last id provided not found in history messages. This means that client
-	// most probably missed too many messages (maybe wrong last uid provided but
-	// it's not a normal case). So we try to compensate as many as we can. But
-	// recovered flag stays false so we do not give a guarantee all missed messages
-	// recovered successfully.
-	return messages, false
-}
-
 // subscribeCmd handles subscribe command - clients send this when subscribe
 // on channel, if channel if private then we must validate provided sign here before
 // actually subscribe client on channel. Optionally we can send missed messages to
@@ -820,22 +792,28 @@ func (c *client) subscribeCmd(cmd *proto.SubscribeClientCommand) (proto.Response
 			// Client provided subscribe request with recover flag on. Try to recover missed messages
 			// automatically from history (we suppose here that history configured wisely) based on
 			// provided last message id value.
-			messages, _, err := c.node.History(channel, c.appkey, c.user, 0, -1)
+			messages, total, err := c.node.History(channel, c.appkey, c.user, cmd.Last, 0, -1)
 			if err != nil {
 				body.Messages = []proto.Message{}
 			} else {
-				recoveredMessages, recovered := recoverMessages(cmd.Last, messages)
-				body.Messages = recoveredMessages
-				body.Recovered = recovered
+				body.Messages = messages
+				body.Recovered = total > 0
 			}
-		}
-		//	logger.ERROR.Println("No cmd.Recover")
-		// Client don't want to recover messages yet, we just return last message id to him here.
-		lastMessageID, err := c.node.LastMessageID(channel, c.appkey, c.user)
-		if err != nil {
-			logger.ERROR.Println(err)
+			if len(messages) > 0 {
+				body.Last = messages[len(messages)-1].UID
+			} else {
+				body.Last = cmd.Last
+			}
 		} else {
-			body.Last = lastMessageID
+			//	logger.ERROR.Println("No cmd.Recover")
+			// Client don't want to recover messages yet, we just return last message id to him here.
+			lastMessageID, err := c.node.LastMessageID(channel, c.appkey, c.user)
+			if err != nil {
+				logger.ERROR.Println(err)
+			} else {
+				body.Last = lastMessageID
+			}
+
 		}
 	}
 
@@ -1039,7 +1017,7 @@ func (c *client) historyCmd(cmd *proto.HistoryClientCommand) (proto.Response, er
 		return resp, nil
 	}
 
-	history, total, err := c.node.History(channel, c.appkey, c.user, cmd.Skip, cmd.Limit)
+	history, total, err := c.node.History(channel, c.appkey, c.user, "", cmd.Skip, cmd.Limit)
 	if err != nil {
 		resp := proto.NewClientHistoryResponse(body)
 		resp.SetErr(proto.ResponseError{err, proto.ErrorAdviceRetry})
