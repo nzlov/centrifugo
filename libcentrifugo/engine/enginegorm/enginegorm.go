@@ -336,7 +336,6 @@ func (e *Engine) Save() {
 			errChan <- err
 			logger.ERROR.Println(err)
 		}
-		errChan <- e.node.ClientMsg(message, m.appkey, m.users, m.nusers)
 
 		gjsons := gjson.ParseBytes([]byte(message.Data))
 		t := gjsons.Get("type")
@@ -353,6 +352,7 @@ func (e *Engine) Save() {
 				if len(ch) == 2 {
 					switch ch[0] {
 					case "users", "members":
+						m.appkey = models.CENTRIFUGOAPPKEY_CONSUME
 						//发给店铺
 						newMessage := proto.NewMessage(chat.To, []byte(message.Data), message.Client, message.Info)
 						if err := e.save(db, models.CENTRIFUGOAPPKEY_MERCHANT, "", "", newMessage); err != nil {
@@ -389,6 +389,8 @@ func (e *Engine) Save() {
 				}
 			}
 		}
+
+		errChan <- e.node.ClientMsg(message, m.appkey, m.users, m.nusers)
 	}
 }
 
