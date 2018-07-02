@@ -13,6 +13,7 @@ type ClientHub interface {
 	Remove(c ClientConn) error
 	AddSub(ch string, c ClientConn) (bool, error)
 	RemoveSub(ch string, c ClientConn) (bool, error)
+	Publish(uid string, message []byte)
 	Broadcast(ch, appkey string, message []byte, users, nusers string) error
 	NumSubscribers(ch string) int
 	NumClients() int
@@ -195,6 +196,16 @@ func (h *clientHub) RemoveSub(ch string, c ClientConn) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func (h *clientHub) Publish(uid string, message []byte) {
+	c, ok := h.conns[uid]
+	if !ok {
+		return
+	}
+
+	c.Send(NewQueuedMessage(message, true))
+
 }
 
 // Broadcast sends message to all clients subscribed on channel.

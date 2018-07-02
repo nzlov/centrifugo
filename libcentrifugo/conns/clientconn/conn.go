@@ -484,6 +484,15 @@ func (c *client) handleCmd(command proto.ClientCommand) (proto.Response, error) 
 			return nil, proto.ErrInvalidMessage
 		}
 		resp, err = c.historyCmd(&cmd)
+
+	case "micro":
+		var cmd proto.MicroCommand
+		err = json.Unmarshal(params, &cmd)
+		if err != nil {
+			return nil, proto.ErrInvalidMessage
+		}
+		c.node.Micro(c.uid, cmd)
+		resp = proto.NewMicroResponse()
 	default:
 		return nil, proto.ErrMethodNotFound
 	}

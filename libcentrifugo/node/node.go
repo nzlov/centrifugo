@@ -808,6 +808,10 @@ func (n *Node) LastMessageID(ch, appkey, client string) (string, error) {
 	}
 	return history[0].UID, nil
 }
+func (n *Node) Micro(connid string, cmd proto.MicroCommand) {
+	metricsRegistry.Counters.Inc("node_num_micro")
+	n.engine.Micro(connid, cmd)
+}
 
 // PrivateChannel checks if channel private and therefore subscription
 // request on it must be properly signed on web application backend.

@@ -665,17 +665,30 @@ func NewAdminMessageResponse(body raw.Raw) *AdminMessageResponse {
 type MultiAPIResponse []Response
 
 type MicroResponse struct {
-	ResponseError
+	clientResponse
+}
 
+func NewMicroResponse() *MicroResponse {
+	return &MicroResponse{}
+}
+
+type MicroMessage struct {
 	UID    string  `json:"uid,omitempty"`
 	Method string  `json:"method"`
-	Error  *string `json:"error"`
+	Error  *string `json:"error,omitempty"`
 	Body   raw.Raw `json:"body"`
 }
 
-func NewMicroResponse(body raw.Raw) *MicroResponse {
-	return &MicroResponse{
-		Method: "micro",
-		Body:   body,
-	}
+func NewMicroMessage(method string, body []byte) []byte {
+	buf := bytebufferpool.Get()
+	defer bytebufferpool.Put(buf)
+
+	buf.Reset()
+	buf.WriteString(`{"method":`)
+	buf.WriteString(method)
+	buf.WriteString(`,"data":`)
+	buf.Write(body)
+	buf.WriteString(`}`)
+
+	return buf.Bytes()
 }

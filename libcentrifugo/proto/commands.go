@@ -205,7 +205,7 @@ type PingAdminCommand struct {
 	Data string `json:"data"`
 }
 
-// 请求后端微服务
+// 请求后端微服务 name 是微服务的名字
 type MicroCommand struct {
 	UID  string  `json:"uid"`
 	Name string  `json:"name"`
