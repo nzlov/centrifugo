@@ -13,6 +13,8 @@ import (
 	microproto "kabaomicro/proto"
 
 	micro "github.com/micro/go-micro"
+	"github.com/micro/go-micro/registry"
+	"github.com/micro/go-micro/registry/consul"
 	"github.com/nzlov/centrifugo/libcentrifugo/channel"
 	"github.com/nzlov/centrifugo/libcentrifugo/config"
 	"github.com/nzlov/centrifugo/libcentrifugo/engine"
@@ -191,7 +193,7 @@ func New(n *node.Node, conf *Config) (*Engine, error) {
 		presenceHub:  newPresenceHub(),
 		config:       conf,
 		expireCache:  cache.New(time.Minute, 2*time.Minute),
-		microService: micro.NewService(),
+		microService: micro.NewService(micro.Registry(consul.NewRegistry(registry.Addrs("shanshou.consul.host:8500")))),
 	}
 	switch conf.Mode {
 	case "prod":
@@ -681,28 +683,29 @@ func (e *Engine) Channels() ([]string, error) {
 	return e.node.ClientHub().Channels(), nil
 }
 
-func (e *Engine) Micro(connID string, cmd proto.MicroCommand) {
+func (e *Engine) Micro(connID string, cmd proto.MicroCommand) (proto.Response, error) {
 	names := strings.Split(cmd.Name, ".")
 	if len(names) < 2 {
 		logger.ERROR.Printf("[GORM] Micro connid:%s,exec:%+V", connID, cmd)
-		return
+		return nil, fmt.Errorf("request name split length < 2")
 	}
-	go func(connID, micro string, cmd proto.MicroCommand) {
-		c := e.microService.Client()
-		req := c.NewRequest(fmt.Sprintf("yunss.micro.%s", strings.ToLower(micro)), cmd.Name, &microproto.MicroRequest{
-			Data: cmd.Data,
-		})
+	logger.WARN.Println("[GORM]Micro request :", string(cmd.Data))
+	c := e.microService.Client()
+	req := c.NewRequest(fmt.Sprintf("yunss.micro.%s", strings.ToLower(names[0])), cmd.Name, &microproto.MicroRequest{
+		Data: cmd.Data,
+	})
 
-		rsp := &microproto.MicroResponse{}
+	rsp := &microproto.MicroResponse{}
 
-		// Call service
-		if err := c.Call(context.Background(), req, rsp); err != nil {
-			logger.ERROR.Println("[GORM] call err: ", err, rsp)
-			return
-		}
-		e.node.ClientHub().Publish(connID, proto.NewMicroMessage(cmd.Name, rsp.Data))
-
-	}(connID, names[0], cmd)
+	// Call service
+	if err := c.Call(context.Background(), req, rsp); err != nil {
+		logger.ERROR.Println("[GORM] call err: ", err, rsp)
+		return nil, fmt.Errorf("request micro has error: %v", err.Error())
+	}
+	return proto.NewClientMicroResponse(proto.MicroBody{
+		Name: cmd.Name,
+		Data: string(rsp.Data),
+	}), nil
 }
 
 type presenceHub struct {

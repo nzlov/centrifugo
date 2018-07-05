@@ -217,6 +217,11 @@ type PingBody struct {
 	Data string `json:"data,omitempty"`
 }
 
+type MicroBody struct {
+	Name string `json:"name"`
+	Data string `json:"data"`
+}
+
 // StatsBody represents body of response in case of successful stats command.
 type StatsBody struct {
 	Data ServerStats `json:"data"`
@@ -420,6 +425,20 @@ func NewClientReadResponse(body ReadBody) *ClientReadResponse {
 	return &ClientReadResponse{
 		clientResponse: clientResponse{
 			Method: "read",
+		},
+		Body: body,
+	}
+}
+
+type ClientMicroResponse struct {
+	clientResponse
+	Body MicroBody `json:"body,omitempty"`
+}
+
+func NewClientMicroResponse(body MicroBody) *ClientMicroResponse {
+	return &ClientMicroResponse{
+		clientResponse: clientResponse{
+			Method: "micro",
 		},
 		Body: body,
 	}
@@ -663,32 +682,3 @@ func NewAdminMessageResponse(body raw.Raw) *AdminMessageResponse {
 // slice of commands received by API in execution order - from first executed
 // to last one.
 type MultiAPIResponse []Response
-
-type MicroResponse struct {
-	clientResponse
-}
-
-func NewMicroResponse() *MicroResponse {
-	return &MicroResponse{}
-}
-
-type MicroMessage struct {
-	UID    string  `json:"uid,omitempty"`
-	Method string  `json:"method"`
-	Error  *string `json:"error,omitempty"`
-	Body   raw.Raw `json:"body"`
-}
-
-func NewMicroMessage(method string, body []byte) []byte {
-	buf := bytebufferpool.Get()
-	defer bytebufferpool.Put(buf)
-
-	buf.Reset()
-	buf.WriteString(`{"method":`)
-	buf.WriteString(method)
-	buf.WriteString(`,"data":`)
-	buf.Write(body)
-	buf.WriteString(`}`)
-
-	return buf.Bytes()
-}

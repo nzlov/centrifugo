@@ -486,13 +486,13 @@ func (c *client) handleCmd(command proto.ClientCommand) (proto.Response, error) 
 		resp, err = c.historyCmd(&cmd)
 
 	case "micro":
+		logger.DEBUG.Println("conn recive :", string(params))
 		var cmd proto.MicroCommand
 		err = json.Unmarshal(params, &cmd)
 		if err != nil {
 			return nil, proto.ErrInvalidMessage
 		}
-		c.node.Micro(c.uid, cmd)
-		resp = proto.NewMicroResponse()
+		resp, err = c.node.Micro(c.uid, cmd)
 	default:
 		return nil, proto.ErrMethodNotFound
 	}

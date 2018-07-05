@@ -60,5 +60,5 @@ type Engine interface {
 	Forbidden(raw.Raw) bool
 
 	// Micro 调用后端微服务
-	Micro(connID string, cmd proto.MicroCommand)
+	Micro(connID string, cmd proto.MicroCommand) (proto.Response, error)
 }
