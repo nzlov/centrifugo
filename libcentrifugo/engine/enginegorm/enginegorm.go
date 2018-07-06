@@ -1,14 +1,20 @@
 package enginegorm
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
 
 	"kabao/app/models"
+	microproto "kabaomicro/proto"
 
+	micro "github.com/micro/go-micro"
+	"github.com/micro/go-micro/registry"
+	"github.com/micro/go-micro/registry/consul"
 	"github.com/nzlov/centrifugo/libcentrifugo/channel"
 	"github.com/nzlov/centrifugo/libcentrifugo/config"
 	"github.com/nzlov/centrifugo/libcentrifugo/engine"
@@ -25,7 +31,6 @@ import (
 	"github.com/nzlov/gorm"
 	_ "github.com/nzlov/gorm/dialects/mysql"
 	_ "github.com/nzlov/gorm/dialects/postgres"
-	_ "github.com/nzlov/gorm/dialects/sqlite"
 )
 
 func init() {
@@ -141,6 +146,8 @@ type Engine struct {
 	config      *Config
 	expireCache *cache.Cache
 
+	microService micro.Service
+
 	messageChan chan *message
 }
 
@@ -182,10 +189,11 @@ type Config struct {
 // New initializes Memory Engine.
 func New(n *node.Node, conf *Config) (*Engine, error) {
 	e := &Engine{
-		node:        n,
-		presenceHub: newPresenceHub(),
-		config:      conf,
-		expireCache: cache.New(time.Minute, 2*time.Minute),
+		node:         n,
+		presenceHub:  newPresenceHub(),
+		config:       conf,
+		expireCache:  cache.New(time.Minute, 2*time.Minute),
+		microService: micro.NewService(micro.Registry(consul.NewRegistry(registry.Addrs("shanshou.consul.host:8500")))),
 	}
 	switch conf.Mode {
 	case "prod":
@@ -238,6 +246,9 @@ func (e *Engine) Run() error {
 	for i := 0; i < e.config.Go; i++ {
 		go e.Save()
 	}
+	logger.WARN.Println("[GORM] Init")
+
+	//	e.microService.Init()
 
 	return nil
 }
@@ -638,6 +649,31 @@ func (e *Engine) Channels() ([]string, error) {
 	return e.node.ClientHub().Channels(), nil
 }
 
+func (e *Engine) Micro(connID string, cmd proto.MicroCommand) (proto.Response, error) {
+	names := strings.Split(cmd.Name, ".")
+	if len(names) < 2 {
+		logger.ERROR.Printf("[GORM] Micro connid:%s,exec:%+V", connID, cmd)
+		return nil, fmt.Errorf("request name split length < 2")
+	}
+	logger.WARN.Println("[GORM]Micro request :", string(cmd.Data))
+	c := e.microService.Client()
+	req := c.NewRequest(fmt.Sprintf("yunss.micro.%s", strings.ToLower(names[0])), cmd.Name, &microproto.MicroRequest{
+		Data: cmd.Data,
+	})
+
+	rsp := &microproto.MicroResponse{}
+
+	// Call service
+	if err := c.Call(context.Background(), req, rsp); err != nil {
+		logger.ERROR.Println("[GORM] call err: ", err, rsp)
+		return nil, fmt.Errorf("request micro has error: %v", err.Error())
+	}
+	return proto.NewClientMicroResponse(proto.MicroBody{
+		Name: cmd.Name,
+		Data: string(rsp.Data),
+	}), nil
+}
+
 type presenceHub struct {
 	sync.RWMutex
 	presence map[string]map[string]proto.ClientInfo
@@ -692,8 +728,7 @@ func (h *presenceHub) get(ch string) (map[string]proto.ClientInfo, error) {
 		return map[string]proto.ClientInfo{}, nil
 	}
 
-	var data map[string]proto.ClientInfo
-	data = make(map[string]proto.ClientInfo, len(presence))
+	data := make(map[string]proto.ClientInfo, len(presence))
 	for k, v := range presence {
 		data[k] = v
 	}

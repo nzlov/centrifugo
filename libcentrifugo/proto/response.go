@@ -217,6 +217,11 @@ type PingBody struct {
 	Data string `json:"data,omitempty"`
 }
 
+type MicroBody struct {
+	Name string `json:"name"`
+	Data string `json:"data"`
+}
+
 // StatsBody represents body of response in case of successful stats command.
 type StatsBody struct {
 	Data ServerStats `json:"data"`
@@ -420,6 +425,20 @@ func NewClientReadResponse(body ReadBody) *ClientReadResponse {
 	return &ClientReadResponse{
 		clientResponse: clientResponse{
 			Method: "read",
+		},
+		Body: body,
+	}
+}
+
+type ClientMicroResponse struct {
+	clientResponse
+	Body MicroBody `json:"body,omitempty"`
+}
+
+func NewClientMicroResponse(body MicroBody) *ClientMicroResponse {
+	return &ClientMicroResponse{
+		clientResponse: clientResponse{
+			Method: "micro",
 		},
 		Body: body,
 	}

@@ -87,6 +87,7 @@ func init() {
 	metricsRegistry.RegisterCounter("node_num_remove_presence", metrics.NewCounter())
 	metricsRegistry.RegisterCounter("node_num_history", metrics.NewCounter())
 	metricsRegistry.RegisterCounter("node_num_last_message_id", metrics.NewCounter())
+	metricsRegistry.RegisterCounter("node_num_micro", metrics.NewCounter())
 
 	metricsRegistry.RegisterGauge("node_memory_sys", metrics.NewGauge())
 	metricsRegistry.RegisterGauge("node_memory_heap_sys", metrics.NewGauge())
@@ -807,6 +808,10 @@ func (n *Node) LastMessageID(ch, appkey, client string) (string, error) {
 		return "", nil
 	}
 	return history[0].UID, nil
+}
+func (n *Node) Micro(connid string, cmd proto.MicroCommand) (proto.Response, error) {
+	metricsRegistry.Counters.Inc("node_num_micro")
+	return n.engine.Micro(connid, cmd)
 }
 
 // PrivateChannel checks if channel private and therefore subscription

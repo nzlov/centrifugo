@@ -204,3 +204,9 @@ type ConnectAdminCommand struct {
 type PingAdminCommand struct {
 	Data string `json:"data"`
 }
+
+// 请求后端微服务 name 是微服务的名字
+type MicroCommand struct {
+	Name string          `json:"name"`
+	Data json.RawMessage `json:"data"`
+}
